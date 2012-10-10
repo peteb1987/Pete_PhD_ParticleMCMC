@@ -7,7 +7,7 @@ state = zeros(1,model.K);
 observ = zeros(1,model.K);
 
 % First state
-state(1) = mvnrnd(model.x1_mn, model.x1_vr);
+[state(1), ~] = nlbenchmark_stateprior(model);
 
 % Loop through time
 for kk = 1:model.K

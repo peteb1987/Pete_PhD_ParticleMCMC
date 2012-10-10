@@ -1,6 +1,8 @@
 % Model parameters
 
 model.K = 500;      % Number of time points
+model.ds = 1;       % Dimension of the states
+model.do = 1;       % Dimension of the observations
 
 % Parameters
 model.beta1 = 0.5;
@@ -18,10 +20,4 @@ model.x1_vr = 5;
 
 
 % Known parameters
-known.K = model.K;
-known.beta1 = model.beta1;
-known.beta2 = model.beta2;
-known.beta3 = model.beta3;
-known.alpha = model.alpha;
-known.sigx = model.sigx;
-known.sigy = model.sigy;
+known = rmfield(model, {'sigx', 'sigy'});
