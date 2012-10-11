@@ -12,7 +12,7 @@ pf(1).weight = zeros(1, algo.N);
 % Sample first state from prior and calculate weight
 for ii = 1:algo.N
     [pf(1).state(:,ii), ~] = nlbenchmark_stateprior(model);
-    pf(1).weight(1,ii) = 1;
+    [~, pf(1).weight(1,ii)] = nlbenchmark_observation(model, pf(1).state(:,ii), observ(:,1));
 end
 
 % Loop through time
@@ -35,7 +35,7 @@ for kk = 2:model.K
         pf(kk).state(:,ii) = nlbenchmark_transition(model, kk-1, prev_state);
         
         % Calculate weight
-        [~, pf(kk).weight(1,ii)] = nlbenchmark_observation(model, pf(kk).state(:,ii), observ(:,1));
+        [~, pf(kk).weight(1,ii)] = nlbenchmark_observation(model, pf(kk).state(:,ii), observ(:,kk));
         
     end
     

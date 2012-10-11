@@ -1,5 +1,5 @@
 function [ ancestor ] = sample_weights( algo, weight, N )
-%SAMPLE_WEIGHTS Samples an array of k ancestor indexes from a set of
+%SAMPLE_WEIGHTS Samples an array of N ancestor indexes from a set of
 %weights
 
 % CURRENTLY, THIS USES MULTINOMIAL RESAMPLING

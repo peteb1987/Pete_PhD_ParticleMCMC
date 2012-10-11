@@ -21,12 +21,21 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     s = RandStream('mt19937ar', 'seed', rand_seed);
     RandStream.setDefaultStream(s);
     
+    % Set flag to non-batch
+    flags.batch = false;
+    
     % Set model and algorithm parameters
     nlbenchmark_set_model;
     nlbenchmark_set_algo;
     
     % Set display options
     display.text = true;
+    display.plot = false;
+    if display.plot
+        display.h_pf(1) = figure;
+        display.h_pf(2) = figure;
+    end
+    
     
 end
 
@@ -40,6 +49,9 @@ end
 
 %% Plot graphs
 
-if ~flags.batch
+if (~flags.batch) && display.plot
+    
+    figure, hold on, plot([1 algo.R], sqrt(model.sigx)*ones(1,2), ':k'); plot(sqrt(cat(2,mc_param.sigx)));
+    figure, hold on, plot([1 algo.R], sqrt(model.sigy)*ones(1,2), ':k'); plot(sqrt(cat(2,mc_param.sigy)));
     
 end
