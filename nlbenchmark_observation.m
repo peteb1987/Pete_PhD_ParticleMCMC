@@ -5,7 +5,7 @@ function [ obs, prob ] = nlbenchmark_observation( model, state, obs )
 % prob is a log-probability.
 
 % Calculate observation mean
-mn = 0.05 * abs(state)^model.alpha;
+mn = nlbenchmark_h(model, state);
 
 % Sample observation if not provided
 if (nargin<3)||isempty(obs)

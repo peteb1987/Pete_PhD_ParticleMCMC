@@ -15,8 +15,22 @@ pf(1).weight = zeros(1, N);
 % First state
 for ii = 1:N
     if ii == traje.index(1)
-        % Set state for conditioned particle
-        pf(1).state(:, ii ) = traje.state(:,1);
+        if (algo.traje_sampling == 1) || (algo.traje_sampling == 2)
+            
+            % Set state for conditioned particle
+            pf(1).state(:, ii) = traje.state(:,1);
+            
+        elseif (algo.traje_sampling == 3)
+            
+            % Sample state for conditioned particle
+            init_state = traje.state(:,1); init_index = 0;
+            next_state = traje.state(:,2);
+            [~, chain_state] = sample_indexandstate(algo, model, 0, [], init_index, init_state, next_state, observ(:,1) );
+            
+            pf(1).state(:, ii) = chain_state;
+            
+        end
+        
     else
         % Sample state
         [pf(1).state(:,ii), ~] = nlbenchmark_stateprior(model);
@@ -28,21 +42,22 @@ end
 % Loop through time
 for kk = 2:K
     
-    % Index of conditioned particle
-    ind = traje.index(kk);
-    
     % Initialise arrays
     pf(kk).state = zeros(model.ds, N);
     pf(kk).weight = zeros(1, N);
     
-    % Sample ancestors for all but conditioned particle
-    pf(kk).ancestor(1,[1:ind-1 ind+1:N]) = sample_weights(algo, pf(kk-1).weight, N-1);
+    % Index of conditioned particle
+    ind = traje.index(kk);
     
+    % Ancestor and state sampling for conditioned particle
     switch algo.traje_sampling
         case 1  % Standard particle Gibbs
             
             % Set conditioned particle ancestor
             pf(kk).ancestor(1, ind ) = traje.index(kk-1);
+            
+            % Set state for conditioned particle
+            pf(kk).state(:,ii) = traje.state(:,kk);
             
         case 2  % Particle Gibbs with backward-simulation
             
@@ -56,27 +71,46 @@ for kk = 2:K
             % Sample an ancestor
             pf(kk).ancestor(1,ind) = sample_weights(algo, bs_weight, 1);
             
+            % Set state for conditioned particle
+            pf(kk).state(:,ii) = traje.state(:,kk);
+            
         case 3  % Particle Gibbs with improved backward-simulation
+            
+            % Get initial values for sampling
+            init_index = traje.index(1,kk-1);
+            init_state = traje.state(:,kk);
+            
+            if kk < K
+                next_state = traje.state(:,kk+1);
+            else
+                next_state = [];
+            end
+            
+            % Sample using Markov chain
+            [chain_index, chain_state] = sample_indexandstate(algo, model, kk-1, pf(kk-1), init_index, init_state, next_state, observ(:,kk) );
+            
+            % Store values
+            if kk > 1
+                pf(kk).ancestor(1,ind) = chain_index;
+            end
+            pf(kk).state(:,ind) = chain_state;
             
     end
     
-    % Loop through particles
-    for ii = 1:N
+    % Calculate weight of conditioned particle
+    [~, pf(kk).weight(1,ii)] = nlbenchmark_observation(model, pf(kk).state(:,ii), observ(:,kk));
+    
+    % Sample ancestors for non-conditioned particles
+    pf(kk).ancestor(1,[1:ind-1 ind+1:N]) = sample_weights(algo, pf(kk-1).weight, N-1);
+    
+    % Loop through non-conditioned particles
+    for ii = [1:ind-1 ind+1:N]
         
         % Ancestory
         prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
         
-        if ii == ind
-            
-            % Set state for conditioned particle
-            pf(kk).state(:,ii) = traje.state(:,kk);
-            
-        else
-            
-            % Sample a state
-            [pf(kk).state(:,ii), ~] = nlbenchmark_transition(model, kk-1, prev_state);
-            
-        end
+        % Sample a state
+        [pf(kk).state(:,ii), ~] = nlbenchmark_transition(model, kk-1, prev_state);
         
         % Calculate weight
         [~, pf(kk).weight(1,ii)] = nlbenchmark_observation(model, pf(kk).state(:,ii), observ(:,kk));

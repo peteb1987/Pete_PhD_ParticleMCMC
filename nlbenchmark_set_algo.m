@@ -1,7 +1,7 @@
 % Algorithm parameters
 
-algo.R = 1000;                   % Number of MCMC steps
-algo.N = 100;                   % Number of particles in PF
+algo.R = 100;                   % Number of MCMC steps
+algo.N = 10;                   % Number of particles in PF
 algo.M = algo.N;                % Number of MH steps used by improved backward-simulation
 
 algo.traje_sampling = 2;        % 1 = standard particle Gibbs

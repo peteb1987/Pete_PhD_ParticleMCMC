@@ -6,7 +6,7 @@ function [ new_state, prob ] = nlbenchmark_transition( model, kk, state, new_sta
 % following state. prob is a log-probability.
 
 % Calculate new_state mean
-mn = model.beta1 * state + model.beta2 * (state/(1+state^2)) + model.beta3 * cos(1.2*kk);
+mn = nlbenchmark_f(model, kk, state);
 
 % Sample state if not provided
 if (nargin<4)||isempty(new_state)
