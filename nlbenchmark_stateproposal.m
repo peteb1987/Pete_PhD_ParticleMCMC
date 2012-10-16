@@ -37,7 +37,7 @@ end
 
 % Calculate probability if required
 if nargout>1
-    prob = log(mvnpdf(state, ppsl_mn, ppsl_vr));
+    prob = loggausspdf(state, ppsl_mn, ppsl_vr);
 else
     prob = [];
 end

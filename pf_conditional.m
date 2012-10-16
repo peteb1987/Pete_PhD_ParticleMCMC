@@ -57,7 +57,7 @@ for kk = 2:K
             pf(kk).ancestor(1, ind ) = traje.index(kk-1);
             
             % Set state for conditioned particle
-            pf(kk).state(:,ii) = traje.state(:,kk);
+            pf(kk).state(:,ind) = traje.state(:,kk);
             
         case 2  % Particle Gibbs with backward-simulation
             
@@ -72,7 +72,7 @@ for kk = 2:K
             pf(kk).ancestor(1,ind) = sample_weights(algo, bs_weight, 1);
             
             % Set state for conditioned particle
-            pf(kk).state(:,ii) = traje.state(:,kk);
+            pf(kk).state(:,ind) = traje.state(:,kk);
             
         case 3  % Particle Gibbs with improved backward-simulation
             
@@ -98,7 +98,7 @@ for kk = 2:K
     end
     
     % Calculate weight of conditioned particle
-    [~, pf(kk).weight(1,ii)] = nlbenchmark_observation(model, pf(kk).state(:,ii), observ(:,kk));
+    [~, pf(kk).weight(1,ind)] = nlbenchmark_observation(model, pf(kk).state(:,ind), observ(:,kk));
     
     % Sample ancestors for non-conditioned particles
     pf(kk).ancestor(1,[1:ind-1 ind+1:N]) = sample_weights(algo, pf(kk-1).weight, N-1);

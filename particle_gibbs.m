@@ -27,7 +27,7 @@ mc_param(1) = param;
 mc_traje(1) = traje;
 
 % Plot
-if display.plot
+if display.plot_during
     figure(display.h_pf(1)); clf;
     hold on;
     plot(traje.state(1,:), 'b');
@@ -60,7 +60,7 @@ for rr = 2:algo.R
     mc_traje(rr) = traje;
     
     % Plot
-    if display.plot
+    if display.plot_during
         figure(display.h_pf(rem(rr+1,2)+1)); clf;
         hold on;
         plot(traje.state(1,:), 'b');

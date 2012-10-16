@@ -30,11 +30,12 @@ if ~exist('flags.batch', 'var') || (~flags.batch)
     
     % Set display options
     display.text = true;
-    display.plot = false;
-    if display.plot
+    display.plot_during = false;
+    if display.plot_during
         display.h_pf(1) = figure;
         display.h_pf(2) = figure;
     end
+    display.plot_after = true;
     
     
 end
@@ -49,9 +50,9 @@ end
 
 %% Plot graphs
 
-if (~flags.batch) && display.plot
+if (~flags.batch) && display.plot_after
     
-    figure, hold on, plot([1 algo.R], sqrt(model.sigx)*ones(1,2), ':k'); plot(sqrt(cat(2,mc_param.sigx)));
-    figure, hold on, plot([1 algo.R], sqrt(model.sigy)*ones(1,2), ':k'); plot(sqrt(cat(2,mc_param.sigy)));
+    figure, hold on, plot([1 algo.R], sqrt(model.sigx)*ones(1,2), ':k'); plot(sqrt(cat(2,mc_param.sigx))); ylim([0,5]);
+    figure, hold on, plot([1 algo.R], sqrt(model.sigy)*ones(1,2), ':k'); plot(sqrt(cat(2,mc_param.sigy))); ylim([0,5]);
     
 end

@@ -11,7 +11,7 @@ end
 
 % Calculate probability if required
 if nargout>1
-    prob = log(mvnpdf(state, model.x1_mn, model.x1_vr));
+    prob = loggausspdf(state, model.x1_mn, model.x1_vr);
 else
     prob = [];
 end
