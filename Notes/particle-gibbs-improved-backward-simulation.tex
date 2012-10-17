@@ -1,0 +1,124 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{IEEEtrantools}
+\usepackage{color}
+
+\newenvironment{meta}[0]{\color{red} \em}{}
+
+\interdisplaylinepenalty=0
+
+\title{A Variation on the Particle-Gibbs with Backward-Simulation Algorithm}
+\author{Pete Bunch}
+
+\begin{document}
+
+\maketitle
+
+\section{Outline}
+
+Particle-Gibbs (PG) is a particle-MCMC algorithm for joint estimation of states and parameters in a hidden Markov model (HMM). In each iteration, a particle filter is run, from which a state trajectory is sampled. Parameters are then sampled conditional on this trajectory. The basic PG algorithm suffers from poor mixing when the number of filter particles, $N$, is too small for the number of observations, $T$, resulting in a degenerate representation of the smoothing distribution. Particle-Gibbs with backward-simulation (PG-BS) is an improved version of PG, in which backward simulation is used to sample a trajectory from the particle filter output. This improves mixing, because the trajectory is not restricted to those appearing in the particle filter output. It is, however, required to use the individual state values which appear in the particle filter. Here we propose a further extension to particle-Gibbs by using a new version of backward-simulation in which the state values used when sampling a trajectory are not restricted to those appearing in the particle filter output. This might improve mixing further.
+
+\section{Particle Filtering}
+
+\section{Basic Particle-Gibbs}
+
+\section{Particle-Gibbs with Backward Simulation}
+
+\section{Improved Backward Simulation}
+
+\section{Improved Backward Simulation for Particle-Gibbs}
+
+The improved backward simulation algorithm samples from,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \psi_{\theta}(x_{1:T}', b_{1:T} | \mathbf{x}_{1:T}, \mathbf{a}_{2:T}) } \nonumber \\
+  & = & \frac{w_{T}^{(b_T)}}{\sum_j w_{T}^{(j)}} \times \frac{ w_{T-1}^{(b_{T-1})} p_{\theta}(x_T', y_T|x_{T-1}^{(b_{T-1})}) }{ \sum_j w_{T-1}^{(j)} p_{\theta}(y_T|x_{T-1}^{(j)}) } \times \prod_{t=2}^{T-1} \frac{ w_{t-1}^{(b_{t-1})} p_{\theta}(x_t', x_{t+1}', y_t|x_{t-1}^{(b_{t-1})}) }{ \sum_j w_{t-1}^{(j)} p_{\theta}(x_{t+1}', y_t|x_{t-1}^{(j)}) } \times p_{\theta}(x_1'|x_2', y_1)      . \nonumber \\
+\end{IEEEeqnarray}
+
+The extended target distribution is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \phi(x_{1:T}', b_{1:T}, \mathbf{x}_{1:T}, \mathbf{a}_{2:T}, \theta) } \nonumber \\
+ & = & \frac{ p(x_{1:T}', \theta | y_{1:T}) }{ N^T } \nonumber \\
+ &   & \times \left[ \prod_{i \ne b_1} M(x_{1}^{(i)}) \right] \prod_{t=2}^{T} \left[ \prod_{i \ne b_t} \frac{ w_{t-1}^{(a_t^{(i)})} \nu_{t-1}^{(a_t^{(i)})} }{ \sum_j w_{t-1}^{(j)} \nu_{t-1}^{(j)} } M(x_t^{(i)}|x_{t-1}^{(a_t^{(i)})}) \right] \nonumber \\
+ &   & \times \frac{ w_{T-1}^{(a_T^{(b_T)})} p_{\theta}(x_T^{(b_T)}, y_T | x_{T-1}^{(a_T^{(b_T)})} ) }{ \sum_j w_{T-1}^{(j)} p_{\theta}( y_T | x_{T-1}^{(j)} ) } \prod_{t=2}^{T-1} \frac{ w_{t-1}^{(a_t^{(b_t)})} p_{\theta}(x_t^{(b_t)}, x_{t+1}', y_t | x_{t-1}^{(a_t^{(b_t)})} ) }{ \sum_j w_{t-1}^{(j)} p_{\theta}( x_{t+1}', y_t | x_{t-1}^{(j)} ) } p_{\theta}(x_1^{(b_1)}|x_2', y_1) \nonumber \\
+ &   & \\
+ & = & \frac{ p(x_{1:T}', \theta | y_{1:T}) }{ N^T } \nonumber \\
+ &   & \times \left[ \prod_{i \ne b_1} M(x_{1}^{(i)}) \right] p_{\theta}(x_1^{(b_1)}|x_2', y_1) \nonumber \\
+ &   & \times \prod_{t=2}^{T-1} \left[ \prod_{i \ne b_t} \frac{ w_{t-1}^{(a_t^{(i)})} \nu_{t-1}^{(a_t^{(i)})} }{ \sum_j w_{t-1}^{(j)} \nu_{t-1}^{(j)} } M(x_t^{(i)}|x_{t-1}^{(a_t^{(i)})}) \right] \frac{ w_{t-1}^{(a_t^{(b_t)})} p_{\theta}(x_t^{(b_t)}, x_{t+1}', y_t | x_{t-1}^{(a_t^{(b_t)})} ) }{ \sum_j w_{t-1}^{(j)} p_{\theta}( x_{t+1}', y_t | x_{t-1}^{(j)} ) } \nonumber \\
+ &   & \times \left[ \prod_{i \ne b_T} \frac{ w_{T-1}^{(a_T^{(i)})} \nu_{T-1}^{(a_T^{(i)})} }{ \sum_j w_{T-1}^{(j)} \nu_{T-1}^{(j)} } M(x_T^{(i)}|x_{T-1}^{(a_T^{(i)})}) \right] \frac{ w_{T-1}^{(a_T^{(b_T)})} p_{\theta}(x_T^{(b_T)}, y_T | x_{T-1}^{(a_T^{(b_T)})} ) }{ \sum_j w_{T-1}^{(j)} p_{\theta}( y_T | x_{T-1}^{(j)} ) }      .
+\end{IEEEeqnarray}
+
+To use this in a Gibbs sampler, we need to know the following things:
+\begin{itemize}
+  \item That the marginal distribution $\phi(x_{1:T}', b_{1:T}, \theta)$ is the desired posterior.
+  \item That the conditional $\phi(x_{1:T}', b_{1:T} | \mathbf{x}_{1:T}, \mathbf{a}_{2:T}, \theta)$ is equal to $\psi_{\theta}(x_{1:T}', b_{1:T} | \mathbf{x}_{1:T}, \mathbf{a}_{2:T})$.
+  \item The conditional, $\phi(\mathbf{x}_{1:T}, \mathbf{a}_{2:T} | x_{1:T}', b_{1:T}, \theta)$ and how to sample from it using a conditional particle filter.
+\end{itemize}
+
+These are all very similar to the standard PG-BS.
+
+\subsection{Marginal}
+
+Here we show that the extended target distribution admits the posterior as a marginal
+
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \phi(x_{1:T}', b_{1:T}, \theta) } \nonumber \\
+ & = & \sum_{\mathbf{a}_{2:T}} \int \phi(x_{1:T}', b_{1:T}, \mathbf{x}_{1:T}, \mathbf{a}_{2:T}, \theta) d\mathbf{x}_{1:T} \nonumber \\
+ & = & \frac{ p(x_{1:T}', \theta | y_{1:T}) }{ N^T }
+\end{IEEEeqnarray}
+
+I can't be bothered to write this all out, but its pretty obvious. We do the integrals and summations alternately backwards through time. Each step eliminates a term from the time-product in the extended distribution expression. The $N^{-T}$ term is a uniform distribution over $b_{1:T}$.
+
+\subsection{Trajectory Sampling Conditional}
+
+Here we show that the improved backward-simulation algorithm samples from the conditional distribution, $\phi(x_{1:T}', b_{1:T} | \mathbf{x}_{1:T}, \mathbf{a}_{2:T}, \theta)$. This requires a repeated application of the following identity, which follows from the weight definition,
+%
+\begin{IEEEeqnarray}{rCl}
+ p_{\theta}(y_t|x_t^{(i)}) p_{\theta}(x_t^{(i)}|x_{t-1}^{(a_t^{(i)})}) & = & w_{t}^{(i)} M(x_t^{(i)}|x_{t-1}^{(a_t^{(i)})}) \nu_{t-1}^{(a_t^{(i)})}     .
+\end{IEEEeqnarray}
+
+Here goes...
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \phi(x_{1:T}', b_{1:T} | \mathbf{x}_{1:T}, \mathbf{a}_{2:T}, \theta) } \nonumber \\
+  & \propto & \phi(x_{1:T}', b_{1:T}, \mathbf{x}_{1:T}, \mathbf{a}_{2:T}, \theta) \nonumber \\
+ & = & \frac{ p(x_{1:T}', \theta | y_{1:T}) }{ N^T } \nonumber \\
+ &   & \times \left[ \prod_{i \ne b_1} M(x_{1}^{(i)}) \right] p_{\theta}(x_1^{(b_1)}|x_2', y_1) \nonumber \\
+ &   & \times \prod_{t=2}^{T-1} \left[ \prod_{i \ne b_t} \frac{ w_{t-1}^{(a_t^{(i)})} \nu_{t-1}^{(a_t^{(i)})} }{ \sum_j w_{t-1}^{(j)} \nu_{t-1}^{(j)} } M(x_t^{(i)}|x_{t-1}^{(a_t^{(i)})}) \right] \frac{ w_{t-1}^{(a_t^{(b_t)})} p_{\theta}(x_t^{(b_t)}, x_{t+1}', y_t | x_{t-1}^{(a_t^{(b_t)})} ) }{ \sum_j w_{t-1}^{(j)} p_{\theta}( x_{t+1}', y_t | x_{t-1}^{(j)} ) } \nonumber \\
+ &   & \times \left[ \prod_{i \ne b_T} \frac{ w_{T-1}^{(a_T^{(i)})} \nu_{T-1}^{(a_T^{(i)})} }{ \sum_j w_{T-1}^{(j)} \nu_{T-1}^{(j)} } M(x_T^{(i)}|x_{T-1}^{(a_T^{(i)})}) \right] \frac{ w_{T-1}^{(a_T^{(b_T)})} p_{\theta}(x_T^{(b_T)}, y_T | x_{T-1}^{(a_T^{(b_T)})} ) }{ \sum_j w_{T-1}^{(j)} p_{\theta}( y_T | x_{T-1}^{(j)} ) } \nonumber \\
+ & = & \frac{ p(x_{1:T}', \theta | y_{1:T}) }{ N^T } \nonumber \\
+ &   & \times \left[ \prod_{i \ne b_1} M(x_{1}^{(i)}) \right] \frac{ p_{\theta}(x_2'|x_1^{(b_1)}) w_{1}^{(b_1)} M(x_1^{(b_1)}) }{ p_{\theta}(x_2', y_1) } \nonumber \\
+ &   & \times \prod_{t=2}^{T-1} \left[ \prod_{i \ne b_t} \frac{ w_{t-1}^{(a_t^{(i)})} \nu_{t-1}^{(a_t^{(i)})} }{ \sum_j w_{t-1}^{(j)} \nu_{t-1}^{(j)} } M(x_t^{(i)}|x_{t-1}^{(a_t^{(i)})}) \right] \frac{ w_{t-1}^{(a_t^{(b_t)})} p_{\theta}(x_{t+1}' | x_t^{(b_t)}) w_{t}^{(b_t)} M(x_t^{(b_t)}|x_{t-1}^{(a_t^{(b_t)})}) \nu_{t-1}^{(a_t^{(b_t)})} }{ \sum_j w_{t-1}^{(j)} p_{\theta}( x_{t+1}', y_t | x_{t-1}^{(j)} ) } \nonumber \\
+ &   & \times \left[ \prod_{i \ne b_T} \frac{ w_{T-1}^{(a_T^{(i)})} \nu_{T-1}^{(a_T^{(i)})} }{ \sum_j w_{T-1}^{(j)} \nu_{T-1}^{(j)} } M(x_T^{(i)}|x_{T-1}^{(a_T^{(i)})}) \right] \frac{ w_{T-1}^{(a_T^{(b_T)})} w_{T}^{(b_T)} M(x_T^{(b_T)}|x_{T-1}^{(a_T^{(b_T)})}) \nu_{T-1}^{(a_T^{(b_T)})} }{ \sum_j w_{T-1}^{(j)} p_{\theta}( y_T | x_{T-1}^{(j)} ) } \nonumber \\
+ & \propto & \frac{ p(x_{1:T}', \theta | y_{1:T}) }{ N^T } \nonumber \\
+ &   & \times \left[ \prod_{i} M(x_{1}^{(i)}) \right] \frac{ p_{\theta}(x_2'|x_1^{(b_1)}) w_{1}^{(b_1)} }{ p_{\theta}(x_2', y_1) } \nonumber \\
+ &   & \times \prod_{t=2}^{T-1} \left[ \prod_{i} \frac{ w_{t-1}^{(a_t^{(i)})} \nu_{t-1}^{(a_t^{(i)})} }{ \sum_j w_{t-1}^{(j)} \nu_{t-1}^{(j)} } M(x_t^{(i)}|x_{t-1}^{(a_t^{(i)})}) \right] \frac{ p_{\theta}(x_{t+1}' | x_t^{(b_t)}) w_{t}^{(b_t)} }{ \sum_j w_{t-1}^{(j)} p_{\theta}( x_{t+1}', y_t | x_{t-1}^{(j)} ) } \nonumber \\
+ &   & \times \left[ \prod_{i} \frac{ w_{T-1}^{(a_T^{(i)})} \nu_{T-1}^{(a_T^{(i)})} }{ \sum_j w_{T-1}^{(j)} \nu_{T-1}^{(j)} } M(x_T^{(i)}|x_{T-1}^{(a_T^{(i)})}) \right] \frac{ w_{T}^{(b_T)} }{ \sum_j w_{T-1}^{(j)} p_{\theta}( y_T | x_{T-1}^{(j)} ) } \nonumber \\
+ & \propto & \frac{1}{N^T} \psi_{\theta}(\mathbf{x}_{1:T}, \mathbf{a}_{2:T}) \nonumber \\
+ &   & \times \frac{ w_1^{(b_1)} p_{\theta}(x_2'|x_1^{(b_1)}) p_{\theta}(y_1|x_1') p_{\theta}(x_1') }{ p_{\theta}(x_2', y_1) } \nonumber \\
+ &   & \times \prod_{t=2}^{T-1} \frac{ w_{t}^{(b_{t})} p_{\theta}(x_{t+1}' | x_t^{(b_t)}) p_{\theta}(y_t|x_t') p_{\theta}(x_t'|x_{t-1}') }{ \sum_j w_{t-1}^{(j)} p_{\theta}( x_{t+1}', y_t | x_{t-1}^{(j)} ) } \nonumber \\
+ &   & \times \frac{ w_{T}^{(b_T)} p_{\theta}(y_T|x_T') p_{\theta}(x_T'|x_{T-1}') }{ \sum_j w_{T-1}^{(j)} p_{\theta}( y_T | x_{T-1}^{(j)} ) } \nonumber \\
+ & \propto & \frac{ p_{\theta}(x_2'|x_1') p_{\theta}(y_1|x_1') p_{\theta}(x_1') }{ p_{\theta}(x_2', y_1) } \nonumber \\
+ &   & \times \prod_{t=2}^{T-1} \frac{ w_{t-1}^{(b_{t-1})} p_{\theta}(x_{t}' | x_{t-1}^{(b_t)}) p_{\theta}(y_t|x_t') p_{\theta}(x_{t+1}'|x_{t}') }{ \sum_j w_{t-1}^{(j)} p_{\theta}( x_{t+1}', y_t | x_{t-1}^{(j)} ) } \nonumber \\
+ &   & \times \frac{ w_{T}^{(b_T)}  }{ \sum_j w_{T}^{(j)}  } \times \frac{ w_{T-1}^{(b_{T-1})} p_{\theta}(y_T|x_T') p_{\theta}(x_T'|x_{T-1}^{(b_{T-1})}) }{ \sum_j w_{T-1}^{(j)} p_{\theta}( y_T | x_{T-1}^{(j)} ) } \nonumber \\
+ & = & \psi_{\theta}(x_{1:T}', b_{1:T} | \mathbf{x}_{1:T}, \mathbf{a}_{2:T})     .
+\end{IEEEeqnarray}
+
+\subsection{Conditional Particle Filter}
+
+The other conditional from we need to sample is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \phi(\mathbf{x}_{1:T}, \mathbf{a}_{2:T} | x_{1:T}', b_{1:T}, \theta) } \nonumber \\
+ & = & \frac{ \phi(x_{1:T}', b_{1:T}, \mathbf{x}_{1:T}, \mathbf{a}_{2:T}, \theta) }{ \phi(x_{1:T}', b_{1:T}, \theta) } \nonumber \\
+ & = & \left[ \prod_{i \ne b_1} M(x_{1}^{(i)}) \right] p_{\theta}(x_1^{(b_1)}|x_2', y_1) \nonumber \\
+ &   & \times \prod_{t=2}^{T-1} \left[ \prod_{i \ne b_t} \frac{ w_{t-1}^{(a_t^{(i)})} \nu_{t-1}^{(a_t^{(i)})} }{ \sum_j w_{t-1}^{(j)} \nu_{t-1}^{(j)} } M(x_t^{(i)}|x_{t-1}^{(a_t^{(i)})}) \right] \frac{ w_{t-1}^{(a_t^{(b_t)})} p_{\theta}(x_t^{(b_t)}, x_{t+1}', y_t | x_{t-1}^{(a_t^{(b_t)})} ) }{ \sum_j w_{t-1}^{(j)} p_{\theta}( x_{t+1}', y_t | x_{t-1}^{(j)} ) } \nonumber \\
+ &   & \times \left[ \prod_{i \ne b_T} \frac{ w_{T-1}^{(a_T^{(i)})} \nu_{T-1}^{(a_T^{(i)})} }{ \sum_j w_{T-1}^{(j)} \nu_{T-1}^{(j)} } M(x_T^{(i)}|x_{T-1}^{(a_T^{(i)})}) \right] \frac{ w_{T-1}^{(a_T^{(b_T)})} p_{\theta}(x_T^{(b_T)}, y_T | x_{T-1}^{(a_T^{(b_T)})} ) }{ \sum_j w_{T-1}^{(j)} p_{\theta}( y_T | x_{T-1}^{(j)} ) }     .
+\end{IEEEeqnarray}
+
+This is a (new form of) conditional particle filter. The intractable distributions can be sampled with MH in the same manner as the improved backward simulation algorithm.
+
+
+\end{document}
