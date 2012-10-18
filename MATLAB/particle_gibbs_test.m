@@ -52,7 +52,20 @@ end
 
 if (~flags.batch) && display.plot_after
     
-    figure, hold on, plot([1 algo.R], sqrt(model.sigx)*ones(1,2), ':k'); plot(sqrt(cat(2,mc_param.sigx))); ylim([0,5]);
-    figure, hold on, plot([1 algo.R], sqrt(model.sigy)*ones(1,2), ':k'); plot(sqrt(cat(2,mc_param.sigy))); ylim([0,5]);
+    fields = fieldnames(mc_param);
+    
+    % Loop through parameters
+    for ii = 1:length(fields)
+        
+         p = fields{ii};
+        
+        % Get chain values
+        p_arr = cat(2,mc_param.(p));
+        
+        % Plot things
+        figure, hold on, plot([1 algo.R], model.(p)*ones(1,2), ':k'); plot(p_arr); title(p);
+        figure, hold on, hist(p_arr(algo.burn_in+1:end),30); title(p);
+        
+    end
     
 end

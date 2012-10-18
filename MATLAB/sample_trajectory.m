@@ -42,7 +42,7 @@ switch algo.traje_sampling
         for kk = K-1:-1:1
             
             % Calculate backward sampling weights
-            bs_weight = zeros(algo.N,1);
+            bs_weight = zeros(1,algo.N);
             for ii = 1:N
                 [~, td_prob] = nlbenchmark_transition(model, kk, pf(kk).state(:,ii), traje.state(kk+1));
                 bs_weight(ii) = pf(kk).weight(ii) + td_prob;

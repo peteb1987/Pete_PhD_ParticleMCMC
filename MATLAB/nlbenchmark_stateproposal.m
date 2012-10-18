@@ -8,6 +8,7 @@ lin_state = prior_mn;
 % Linearise
 F = model.beta1 + model.beta2 * ( (1-lin_state^2)/(1+lin_state^2)^2 );
 H = 0.05 * model.alpha * lin_state * (lin_state^2)^(model.alpha/2 - 1);
+H(isnan(H)) = 0;
 
 % Create "augmented observation"
 if ~isempty(next_state) && ~isempty(observ)
