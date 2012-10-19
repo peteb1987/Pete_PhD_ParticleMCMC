@@ -59,12 +59,24 @@ if (~flags.batch) && display.plot_after
         
          p = fields{ii};
         
-        % Get chain values
+        % Get chain values and truth
         p_arr = cat(2,mc_param.(p));
+        p_true = model.(p);
+        
+        if any(strcmp(p, {'sigx', 'sigy'}))
+            p_arr = sqrt(p_arr);
+            p_true = sqrt(p_true);
+        end
+        
+        % Calculate autocorrelation
+        [ delay, ac ] = parameter_autocorrelation( algo, p_arr );
         
         % Plot things
-        figure, hold on, plot([1 algo.R], model.(p)*ones(1,2), ':k'); plot(p_arr); title(p);
-        figure, hold on, hist(p_arr(algo.burn_in+1:end),30); title(p);
+        figure, hold on, plot([1 algo.R], p_true*ones(1,2), ':k'); plot(p_arr); title(p);
+        if algo.R > algo.burn_in
+            figure, hold on, hist(p_arr(algo.burn_in+1:end),30); title(p);
+            figure, hold on, plot([delay(1) delay(end)], [0 0]); plot(delay, ac); title(p);
+        end
         
     end
     

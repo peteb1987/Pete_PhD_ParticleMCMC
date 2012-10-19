@@ -41,15 +41,10 @@ switch algo.traje_sampling
         % Loop backwards through time
         for kk = K-1:-1:1
             
-            % Calculate backward sampling weights
-            bs_weight = zeros(1,algo.N);
-            for ii = 1:N
-                [~, td_prob] = nlbenchmark_transition(model, kk, pf(kk).state(:,ii), traje.state(kk+1));
-                bs_weight(ii) = pf(kk).weight(ii) + td_prob;
-            end
-            
-            % Sample an ancestor
-            traje.index(kk) = sample_weights(algo, bs_weight, 1);
+            % Sample an index
+            init_index = pf(kk+1).ancestor(1, traje.index(1,kk+1) );
+            next_state = traje.state(kk+1);
+            traje.index(kk) = sample_index( algo, model, kk, pf(kk), init_index, next_state );
             
             % Get state and weight
             traje.state(:,kk) = pf(kk).state(:, traje.index(1,kk));

@@ -61,15 +61,10 @@ for kk = 2:K
             
         case 2  % Particle Gibbs with backward-simulation
             
-            % Calculate modified ancestor sampling weights
-            bs_weight = zeros(1,N);
-            for ii = 1:N
-                [~, td_prob] = nlbenchmark_transition(model, kk-1, pf(kk-1).state(:,ii), traje.state(kk));
-                bs_weight(ii) = pf(kk-1).weight(ii) + td_prob;
-            end
-            
             % Sample an ancestor
-            pf(kk).ancestor(1,ind) = sample_weights(algo, bs_weight, 1);
+            init_index = traje.index(kk-1);
+            next_state = traje.state(:,kk);
+            pf(kk).ancestor(1,ind) = sample_index( algo, model, kk-1, pf(kk-1), init_index, next_state );
             
             % Set state for conditioned particle
             pf(kk).state(:,ind) = traje.state(:,kk);

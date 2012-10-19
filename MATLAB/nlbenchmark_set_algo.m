@@ -1,14 +1,15 @@
 % Algorithm parameters
 
-algo.R = 100;                   % Number of MCMC steps
-algo.N = 20;                  % Number of particles in PF
-algo.M = 3;                   % Number of MH steps used by improved backward-simulation
+algo.R = 10;                   % Number of MCMC steps
+algo.N = 10;                  % Number of particles in PF
+algo.M = 13;                   % Number of MH steps used by improved backward-simulation
 
-algo.traje_sampling = 3;        % 1 = standard particle Gibbs
+algo.traje_sampling = 2;        % 1 = standard particle Gibbs
                                 % 2 = particle Gibbs with backward-simulation
                                 % 3 = particle Gibbs with improved backward-simulation
+algo.use_MH_with2 = true;       % If true, and traje_sampling==2, use MH to sample backwards weights
                                 
-algo.burn_in = 50;             % Length of burn in period in samples
+algo.burn_in = 500;             % Length of burn in period in samples
 algo.max_ac_delay = min(algo.R-algo.burn_in,100);    % maximum delay for autocorrelation calculation
 
 % First parameter choices for Markov chain
