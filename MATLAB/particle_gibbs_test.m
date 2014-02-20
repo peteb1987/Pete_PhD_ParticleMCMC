@@ -8,49 +8,69 @@
 
 %% Set Up
 
-if ~exist('flags.batch', 'var') || (~flags.batch)
+if ~exist('flags.batch', 'var') || (~test.batch)
     
     clup
     dbstop if error
     % dbstop if warning
     
+    % Flags
+    test.batch = false;
+    test.model = 1;
+    
     % DEFINE RANDOM SEED
     rand_seed = 0;
     
-    % Set random seed
-    s = RandStream('mt19937ar', 'seed', rand_seed);
-    RandStream.setDefaultStream(s);
-    
-    % Set flag to non-batch
-    flags.batch = false;
+    % Function handles
+    if test.model == 1
+        
+        addpath('nlbenchmark');
+        
+        fh.model = 'nlbenchmark_set_model';
+        fh.algo = 'nlbenchmark_set_algo';
+        fh.gendata = 'nlbenchmark_generate_data';
+        fh.stateprior = 'nlbenchmark_stateprior';
+        fh.transition = 'nlbenchmark_transition';
+        fh.observation = 'nlbenchmark_observation';
+        fh.stateproposal = 'nlbenchmark_stateproposal';
+        fh.paramconditional = 'nlbenchmark_paramconditional';
+        
+    elseif test.flag_model == 2
+        
+        addpath('tracking')
+        
+    end
+
     
     % Set model and algorithm parameters
-    nlbenchmark_set_model;
-    nlbenchmark_set_algo;
+    [model, known] = feval(fh.model, test);
+    algo = feval(fh.algo, test, known);
     
     % Set display options
     display.text = true;
-    display.plot_during = false;
-    if display.plot_during
-        display.h_pf(1) = figure;
-        display.h_pf(2) = figure;
-    end
-    display.plot_after = true;
-    
+    display.plot = true;
     
 end
 
 %% Generate some data
-[state, observ] = nlbenchmark_generate_data(model);
+
+% Set random seed
+rng(rand_seed);
+
+[state, observ] = feval(fh.gendata, model);
 
 %% Run the particle MCMC algorithm
-[mc_param, mc_state] = particle_gibbs(display, algo, known, observ);
+
+% Set random seed
+rng(rand_seed);
+
+[mc_param, mc_state] = particle_gibbs(fh, display, algo, known, observ);
 
 %% Evaluation
 
 %% Plot graphs
 
-if (~flags.batch) && display.plot_after
+if (~test.batch) && display.plot
     
     fields = fieldnames(mc_param);
     

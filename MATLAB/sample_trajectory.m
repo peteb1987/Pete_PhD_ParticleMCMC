@@ -1,4 +1,4 @@
-function [ traje ] = sample_trajectory( algo, model, pf, observ )
+function [ traje ] = sample_trajectory( fh, algo, model, pf, observ )
 %SAMPLE_TRAJECTORY Sample a trajectory from the particle filter results
 %using either the basic method, backward-simulation or improved backward
 %simulation
@@ -7,10 +7,10 @@ K = model.K;
 N = algo.N;
 
 % Create a structure for the trajectory
-traje = nlbenchmark_trajearray(model, 1);
+traje = struct('state', zeros(model.ds, model.K), 'index', zeros(1, model.K), 'weight', zeros(1, model.K));
 
 % Sample an ancestor from the final stage weights
-traje.index(K) = sample_weights(algo, pf(K).weight, 1);
+traje.index(K) = sample_weights(pf(K).weight, 1);
 
 switch algo.traje_sampling
     case 1  % Standard particle Gibbs
@@ -43,8 +43,8 @@ switch algo.traje_sampling
             
             % Sample an index
             init_index = pf(kk+1).ancestor(1, traje.index(1,kk+1) );
-            next_state = traje.state(kk+1);
-            traje.index(kk) = sample_index( algo, model, kk, pf(kk), init_index, next_state );
+            next_state = traje.state(:,kk+1);
+            traje.index(kk) = sample_index( fh, algo, model, pf(kk), init_index, next_state );
             
             % Get state and weight
             traje.state(:,kk) = pf(kk).state(:, traje.index(1,kk));
@@ -59,7 +59,7 @@ switch algo.traje_sampling
             
             % Get initial values for sampling
             init_index = pf(kk).ancestor(1, traje.index(1,kk) );
-            init_state = pf(kk).state(1, traje.index(1,kk) );
+            init_state = pf(kk).state(:, traje.index(1,kk) );
             
             if kk < K
                 next_state = traje.state(:,kk+1);
@@ -69,9 +69,9 @@ switch algo.traje_sampling
             
             % Sample using Markov chain
             if kk > 1
-                [chain_index, chain_state] = sample_indexandstate(algo, model, kk-1, pf(kk-1), init_index, init_state, next_state, observ(:,kk) );
+                [chain_index, chain_state] = sample_indexandstate(fh, algo, model, kk-1, pf(kk-1), init_index, init_state, next_state, observ(:,kk) );
             else
-                [chain_index, chain_state] = sample_indexandstate(algo, model, kk-1, [], init_index, init_state, next_state, observ(:,kk) );
+                [chain_index, chain_state] = sample_indexandstate(fh, algo, model, kk-1, [], init_index, init_state, next_state, observ(:,kk) );
             end
             
             % Store values

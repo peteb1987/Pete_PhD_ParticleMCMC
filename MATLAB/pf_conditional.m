@@ -1,7 +1,5 @@
-function [ pf ] = pf_conditional( algo, model, observ, traje )
+function [ pf ] = pf_conditional( fh, algo, model, observ, traje )
 %PF_STANDARD Run a standard particle filter
-
-% CURRENTLY, THIS IS A BOOTSTRAP FILTER
 
 N = algo.N;
 K = model.K;
@@ -13,30 +11,43 @@ pf(1).ancestor = zeros(1, N);
 pf(1).weight = zeros(1, N);
 
 % First state
+ind = traje.index(1);
 for ii = 1:N
-    if ii == traje.index(1)
-        if (algo.traje_sampling == 1) || (algo.traje_sampling == 2)
-            
+    if algo.proposal == 1
+        % Bootstrap
+        
+        if ii == ind
             % Set state for conditioned particle
-            pf(1).state(:, ii) = traje.state(:,1);
-            
-        elseif (algo.traje_sampling == 3)
-            
-            % Sample state for conditioned particle
-            init_state = traje.state(:,1); init_index = 0;
-            next_state = traje.state(:,2);
-            [~, chain_state] = sample_indexandstate(algo, model, 0, [], init_index, init_state, next_state, observ(:,1) );
-            
-            pf(1).state(:, ii) = chain_state;
-            
+            state = traje.state(:,1);
+        else
+            % Sample new state
+            [state, ~] = feval(fh.stateprior, model);
         end
         
-    else
-        % Sample state
-        [pf(1).state(:,ii), ~] = nlbenchmark_stateprior(model);
+        % Weight
+        [~, pf(1).weight(ii)] = feval(fh.observation, model, state, observ(:,1));
+        
+    elseif algo.proposal == 2
+        % Other
+        
+        if ii == ind
+            % Set state for conditioned particle
+            state = traje.state(:,1);
+            [~, ppsl_prob] = feval(fh.stateproposal, algo, model, [], [], observ(:,1), state);
+        else
+            % Sample new state
+            [state, ppsl_prob] = feval(fh.stateproposal, algo, model, [], [], observ(:,1));
+        end
+        
+        % Weight
+        [~, trans_prob] = feval(fh.stateprior, model, state);
+        [~, obs_prob] = feval(fh.observation, model, state, observ(:,1));
+        pf(1).weight(ii) = obs_prob + trans_prob - ppsl_prob;
+        
     end
-    % Calculate weight
-    [~, pf(1).weight(1,ii)] = nlbenchmark_observation(model, pf(1).state(:,ii), observ(:,1));
+    
+    pf(1).state(:,ii) = state;
+    
 end
 
 % Loop through time
@@ -49,66 +60,67 @@ for kk = 2:K
     % Index of conditioned particle
     ind = traje.index(kk);
     
-    % Ancestor and state sampling for conditioned particle
-    switch algo.traje_sampling
-        case 1  % Standard particle Gibbs
-            
-            % Set conditioned particle ancestor
-            pf(kk).ancestor(1, ind ) = traje.index(kk-1);
-            
-            % Set state for conditioned particle
-            pf(kk).state(:,ind) = traje.state(:,kk);
-            
-        case 2  % Particle Gibbs with backward-simulation
-            
-            % Sample an ancestor
-            init_index = traje.index(kk-1);
-            next_state = traje.state(:,kk);
-            pf(kk).ancestor(1,ind) = sample_index( algo, model, kk-1, pf(kk-1), init_index, next_state );
-            
-            % Set state for conditioned particle
-            pf(kk).state(:,ind) = traje.state(:,kk);
-            
-        case 3  % Particle Gibbs with improved backward-simulation
-            
-            % Get initial values for sampling
-            init_index = traje.index(1,kk-1);
-            init_state = traje.state(:,kk);
-            
-            if kk < K
-                next_state = traje.state(:,kk+1);
-            else
-                next_state = [];
-            end
-            
-            % Sample using Markov chain
-            [chain_index, chain_state] = sample_indexandstate(algo, model, kk-1, pf(kk-1), init_index, init_state, next_state, observ(:,kk) );
-            
-            % Store values
-            if kk > 1
-                pf(kk).ancestor(1,ind) = chain_index;
-            end
-            pf(kk).state(:,ind) = chain_state;
-            
-    end
-    
-    % Calculate weight of conditioned particle
-    [~, pf(kk).weight(1,ind)] = nlbenchmark_observation(model, pf(kk).state(:,ind), observ(:,kk));
-    
     % Sample ancestors for non-conditioned particles
-    pf(kk).ancestor(1,[1:ind-1 ind+1:N]) = sample_weights(algo, pf(kk-1).weight, N-1);
+    pf(kk).ancestor([1:ind-1 ind+1:N]) = sample_weights(pf(kk-1).weight, N-1);
+    pf(kk).ancestor(ind) = NaN;
     
-    % Loop through non-conditioned particles
-    for ii = [1:ind-1 ind+1:N]
+    for ii = 1:N
         
         % Ancestory
-        prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
+        if ii ~= ind
+            prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
+        else
+            prev_state = NaN;
+        end
         
-        % Sample a state
-        [pf(kk).state(:,ii), ~] = nlbenchmark_transition(model, kk-1, prev_state);
+        if algo.proposal == 1
+            % Bootstrap
+            
+            if ii == ind
+                % Set state for conditioned particle
+                state = traje.state(:,kk);
+                
+                % Sample an ancestor
+                init_index = traje.index(kk-1);
+                next_state = traje.state(:,kk);
+                pf(kk).ancestor(1,ii) = sample_index( fh, algo, model, pf(kk-1), init_index, next_state );
+                prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
+                
+            else
+                % Sample new state
+                [state, ~] = feval(fh.transition, model, prev_state);
+            end
+            
+            % Weight
+            [~, pf(kk).weight(ii)] = feval(fh.observation, model, state, observ(:,kk));
+            
+        elseif algo.proposal == 2
+            % Other
+            
+            if ii == ind
+                % Set state for conditioned particle
+                state = traje.state(:,kk);
+                
+                % Sample an ancestor
+                init_index = traje.index(kk-1);
+                next_state = traje.state(:,kk);
+                pf(kk).ancestor(1,ii) = sample_index( fh, algo, model, pf(kk-1), init_index, next_state );
+                prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
+                
+                [~, ppsl_prob] = feval(fh.stateproposal, algo, model, prev_state, [], observ(:,kk), state);
+            else
+                % Sample new state
+                [state, ppsl_prob] = feval(fh.stateproposal, algo, model, prev_state, [], observ(:,kk));
+            end
+            
+            % Weight
+            [~, trans_prob] = feval(fh.transition, model, prev_state, state);
+            [~, obs_prob] = feval(fh.observation, model, state, observ(:,kk));
+            pf(kk).weight(ii) = obs_prob + trans_prob - ppsl_prob;
+            
+        end
         
-        % Calculate weight
-        [~, pf(kk).weight(1,ii)] = nlbenchmark_observation(model, pf(kk).state(:,ii), observ(:,kk));
+        pf(kk).state(:,ii) = state;
         
     end
     
