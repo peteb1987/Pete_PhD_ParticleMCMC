@@ -38,6 +38,8 @@ else
         bs_weight(ii) = pf_kk.weight(ii) + td_prob;
     end
     
+%     calc_ESS(bs_weight)
+
     % Sample an ancestor
     index = sample_weights(bs_weight, 1);
     

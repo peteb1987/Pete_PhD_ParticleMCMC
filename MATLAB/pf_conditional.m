@@ -83,7 +83,7 @@ for kk = 2:K
                 % Sample an ancestor
                 init_index = traje.index(kk-1);
                 next_state = traje.state(:,kk);
-                pf(kk).ancestor(1,ii) = sample_index( fh, algo, model, pf(kk-1), init_index, next_state );
+                pf(kk).ancestor(ii) = sample_index( fh, algo, model, pf(kk-1), init_index, next_state );
                 prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
                 
             else
@@ -104,7 +104,7 @@ for kk = 2:K
                 % Sample an ancestor
                 init_index = traje.index(kk-1);
                 next_state = traje.state(:,kk);
-                pf(kk).ancestor(1,ii) = sample_index( fh, algo, model, pf(kk-1), init_index, next_state );
+                pf(kk).ancestor(ii) = sample_index( fh, algo, model, pf(kk-1), init_index, next_state );
                 prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
                 
                 [~, ppsl_prob] = feval(fh.stateproposal, algo, model, prev_state, [], observ(:,kk), state);
@@ -124,6 +124,8 @@ for kk = 2:K
         
     end
     
+%     calc_ESS(pf(kk).weight)
+
 end
 
 end

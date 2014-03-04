@@ -85,7 +85,38 @@ switch algo.traje_sampling
             
         end
         
-end
-
+    case 4  % Particle Gibbs with improved backward-simulation without de-marginalisation
+        
+        % Loop backwards through time
+        for kk = K:-1:1
+            
+            % Get initial values for sampling
+            init_index = pf(kk).ancestor(1, traje.index(1,kk) );
+            init_state = pf(kk).state(:, traje.index(1,kk) );
+            
+            if kk < K
+                next_state = traje.state(:,kk+1);
+            else
+                next_state = [];
+            end
+            
+            % Sample using Markov chain
+            if kk > 1
+                [chain_index, chain_state] = sample_indexandstate_full(fh, algo, model, kk-1, pf(kk-1), init_index, init_state, next_state, observ(:,kk) );
+            else
+                [chain_index, chain_state] = sample_indexandstate_full(fh, algo, model, kk-1, [], init_index, init_state, next_state, observ(:,kk) );
+            end
+            
+            % Store values
+            if kk > 1
+                traje.index(kk-1) = chain_index;
+            end
+            traje.state(:,kk) = chain_state;
+            
+            % Get weight
+            traje.weight(:,kk) = pf(kk).weight(:, traje.index(1,kk));
+            
+        end
+        
 end
 

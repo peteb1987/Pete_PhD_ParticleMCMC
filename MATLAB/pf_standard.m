@@ -53,7 +53,7 @@ for kk = 2:model.K
             % Other
             [state, ppsl_prob] = feval(fh.stateproposal, algo, model, prev_state, [], observ(:,kk));
             [~, trans_prob] = feval(fh.transition, model, prev_state, state);
-            [~, obs_prob] = feval(fh.observation, model, state, observ(:,1));
+            [~, obs_prob] = feval(fh.observation, model, state, observ(:,kk));
             
             pf(kk).state(:,ii) = state;
             pf(kk).weight(ii) = obs_prob + trans_prob - ppsl_prob;
@@ -62,6 +62,8 @@ for kk = 2:model.K
         
     end
     
+%     calc_ESS(pf(kk).weight)
+
 end
 
 end

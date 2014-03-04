@@ -16,7 +16,8 @@ if ~exist('flags.batch', 'var') || (~test.batch)
     
     % Flags
     test.batch = false;
-    test.model = 1;
+    test.model = 2;
+    test.algorithms = [1 2 3];
     
     % DEFINE RANDOM SEED
     rand_seed = 0;
@@ -26,21 +27,30 @@ if ~exist('flags.batch', 'var') || (~test.batch)
         
         addpath('nlbenchmark');
         
-        fh.model = 'nlbenchmark_set_model';
-        fh.algo = 'nlbenchmark_set_algo';
-        fh.gendata = 'nlbenchmark_generate_data';
+        fh.model = 'nlbenchmark_setmodel';
+        fh.algo = 'nlbenchmark_setalgo';
+        fh.gendata = 'nlbenchmark_generatedata';
         fh.stateprior = 'nlbenchmark_stateprior';
         fh.transition = 'nlbenchmark_transition';
         fh.observation = 'nlbenchmark_observation';
         fh.stateproposal = 'nlbenchmark_stateproposal';
         fh.paramconditional = 'nlbenchmark_paramconditional';
         
-    elseif test.flag_model == 2
+    elseif test.model == 2
         
         addpath('tracking')
         
+        fh.model = 'tracking_setmodel';
+        fh.algo = 'tracking_setalgo';
+        fh.gendata = 'tracking_generatedata';
+        fh.stateprior = 'tracking_stateprior';
+        fh.transition = 'tracking_transition';
+        fh.observation = 'tracking_observation';
+        fh.stateproposal = 'tracking_stateproposal';
+        fh.paramconditional = 'tracking_paramconditional';
+        
     end
-
+    
     
     % Set model and algorithm parameters
     [model, known] = feval(fh.model, test);
@@ -54,48 +64,61 @@ end
 
 %% Generate some data
 
-% Set random seed
 rng(rand_seed);
-
 [state, observ] = feval(fh.gendata, model);
 
-%% Run the particle MCMC algorithm
 
-% Set random seed
-rng(rand_seed);
+%% Run samplers
 
-[mc_param, mc_state] = particle_gibbs(fh, display, algo, known, observ);
+num_algs = length(test.algorithms);
+mc_param = cell(num_algs,1);
+mc_state = cell(num_algs,1);
+rt = zeros(num_algs,1);
+
+for aa = 1:num_algs
+
+    algo.traje_sampling = test.algorithms(aa);
+
+    rng(rand_seed);
+
+    tic;
+    [mc_param{aa}, mc_state{aa}] = particle_gibbs(fh, display, algo, known, observ);
+    rt(aa) = toc;
+
+end
 
 %% Evaluation
 
-%% Plot graphs
-
 if (~test.batch) && display.plot
     
-    fields = fieldnames(mc_param);
-    
-    % Loop through parameters
-    for ii = 1:length(fields)
+    for aa = 1:num_algs
         
-         p = fields{ii};
+        fields = fieldnames(mc_param{aa});
         
-        % Get chain values and truth
-        p_arr = cat(2,mc_param.(p));
-        p_true = model.(p);
-        
-        if any(strcmp(p, {'sigx', 'sigy'}))
-            p_arr = sqrt(p_arr);
-            p_true = sqrt(p_true);
-        end
-        
-        % Calculate autocorrelation
-        [ delay, ac ] = parameter_autocorrelation( algo, p_arr );
-        
-        % Plot things
-        figure, hold on, plot([1 algo.R], p_true*ones(1,2), ':k'); plot(p_arr); title(p);
-        if algo.R > algo.burn_in
-            figure, hold on, hist(p_arr(algo.burn_in+1:end),30); title(p);
-            figure, hold on, plot([delay(1) delay(end)], [0 0]); plot(delay, ac); title(p);
+        % Loop through parameters
+        for ii = 1:length(fields)
+            
+            p = fields{ii};
+            
+            % Get chain values and truth
+            p_arr = cat(2,mc_param{aa}.(p));
+            p_true = model.(p);
+            
+            if any(strcmp(p, {'sigx', 'sigy'}))
+                p_arr = sqrt(p_arr);
+                p_true = sqrt(p_true);
+            end
+            
+            % Calculate autocorrelation
+            [ delay, ac ] = parameter_autocorrelation( algo, p_arr );
+            
+            % Plot things
+            figure, hold on, plot([1 algo.R], p_true*ones(1,2), ':k'); plot(p_arr); title(p);
+            if algo.R > algo.burn_in
+                figure, hold on, hist(p_arr(algo.burn_in+1:end),30); title(p);
+                figure, hold on, plot([delay(1) delay(end)], [0 0]); plot(delay, ac); title(p);
+            end
+            
         end
         
     end
