@@ -1,4 +1,4 @@
-function [ index ] = sample_index( fh, algo, model, pf_kk, init_index, next_state )
+function [ index, bess ] = sample_index( fh, algo, model, pf_kk, init_index, next_state )
 %SAMPLE_INDEX Sample an ancestor for a single time
 %instant from the joint posterior, using Metropolis-Hastings. This is the
 %main step in the backward simulation particle Gibbs algorithm.
@@ -38,7 +38,7 @@ else
         bs_weight(ii) = pf_kk.weight(ii) + td_prob;
     end
     
-%     calc_ESS(bs_weight)
+    bess = calc_ESS(bs_weight);
 
     % Sample an ancestor
     index = sample_weights(bs_weight, 1);

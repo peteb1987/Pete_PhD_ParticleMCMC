@@ -60,18 +60,14 @@ for kk = 2:K
     % Index of conditioned particle
     ind = traje.index(kk);
     
-    % Sample ancestors for non-conditioned particles
+    % Sample ancestors
     pf(kk).ancestor([1:ind-1 ind+1:N]) = sample_weights(pf(kk-1).weight, N-1);
-    pf(kk).ancestor(ind) = NaN;
+    pf(kk).ancestor(ind) = traje.index(kk-1);
     
     for ii = 1:N
         
         % Ancestory
-        if ii ~= ind
-            prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
-        else
-            prev_state = NaN;
-        end
+        prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
         
         if algo.proposal == 1
             % Bootstrap
@@ -79,12 +75,6 @@ for kk = 2:K
             if ii == ind
                 % Set state for conditioned particle
                 state = traje.state(:,kk);
-                
-                % Sample an ancestor
-                init_index = traje.index(kk-1);
-                next_state = traje.state(:,kk);
-                pf(kk).ancestor(ii) = sample_index( fh, algo, model, pf(kk-1), init_index, next_state );
-                prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
                 
             else
                 % Sample new state
@@ -100,13 +90,6 @@ for kk = 2:K
             if ii == ind
                 % Set state for conditioned particle
                 state = traje.state(:,kk);
-                
-                % Sample an ancestor
-                init_index = traje.index(kk-1);
-                next_state = traje.state(:,kk);
-                pf(kk).ancestor(ii) = sample_index( fh, algo, model, pf(kk-1), init_index, next_state );
-                prev_state = pf(kk-1).state(:,pf(kk).ancestor(ii));
-                
                 [~, ppsl_prob] = feval(fh.stateproposal, algo, model, prev_state, [], observ(:,kk), state);
             else
                 % Sample new state

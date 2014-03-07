@@ -3,7 +3,7 @@ function [ algo ] = tracking_setalgo( test, known )
 % Algorithm parameters
 
 algo.proposal = 2;              % 1 = bootstrap, 2 = alternative
-algo.R = 2000;                   % Number of MCMC steps
+algo.R = 5000;                   % Number of MCMC steps
 algo.N = 100;                    % Number of particles in PF
 algo.M = 20;                    % Number of MH steps used by improved backward-simulation
 
@@ -13,7 +13,7 @@ algo.traje_sampling = 3;        % 1 = standard particle Gibbs
 algo.use_MH_with2 = false;      % If true, and traje_sampling==2, use MH to sample backwards weights
 algo.use_MH_with3 = false;      % If true, and traje_sampling==3, use MH to sample backwards weights
                                 
-algo.burn_in = 100;             % Length of burn in period in samples
+algo.burn_in = 1000;             % Length of burn in period in samples
 algo.max_ac_delay = min(algo.R-algo.burn_in,100);    % maximum delay for autocorrelation calculation
 
 % First parameter choices for Markov chain

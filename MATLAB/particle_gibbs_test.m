@@ -8,7 +8,7 @@
 
 %% Set Up
 
-if ~exist('flags.batch', 'var') || (~test.batch)
+if ~exist('test', 'var') || ~isfield(test,'batch') || (~test.batch)
     
     clup
     dbstop if error
@@ -17,10 +17,11 @@ if ~exist('flags.batch', 'var') || (~test.batch)
     % Flags
     test.batch = false;
     test.model = 2;
-    test.algorithms = [1 2 3];
+    test.algorithms = [2 3];
+    test.filter_particles = [100 100 100];
     
     % DEFINE RANDOM SEED
-    rand_seed = 0;
+    rand_seed = 1;
     
     % Function handles
     if test.model == 1
@@ -51,16 +52,17 @@ if ~exist('flags.batch', 'var') || (~test.batch)
         
     end
     
-    
-    % Set model and algorithm parameters
-    [model, known] = feval(fh.model, test);
-    algo = feval(fh.algo, test, known);
-    
     % Set display options
     display.text = true;
     display.plot = true;
     
 end
+
+%% Parameters
+
+% Set model and algorithm parameters
+[model, known] = feval(fh.model, test);
+algo = feval(fh.algo, test, known);
 
 %% Generate some data
 
@@ -71,19 +73,19 @@ rng(rand_seed);
 %% Run samplers
 
 num_algs = length(test.algorithms);
-mc_param = cell(num_algs,1);
-mc_state = cell(num_algs,1);
+mc = cell(num_algs,1);
 rt = zeros(num_algs,1);
 
 for aa = 1:num_algs
 
     algo.traje_sampling = test.algorithms(aa);
+    algo.N = test.filter_particles(aa);
 
     rng(rand_seed);
 
-    tic;
-    [mc_param{aa}, mc_state{aa}] = particle_gibbs(fh, display, algo, known, observ);
-    rt(aa) = toc;
+    t0 = cputime;
+    [mc{aa}] = particle_gibbs(fh, display, algo, known, observ);
+    rt(aa) = cputime-t0;
 
 end
 
@@ -91,9 +93,9 @@ end
 
 if (~test.batch) && display.plot
     
-    for aa = 1:num_algs
+    for aa = 1:length(mc{aa}.param)
         
-        fields = fieldnames(mc_param{aa});
+        fields = fieldnames(mc{aa}.param);
         
         % Loop through parameters
         for ii = 1:length(fields)
@@ -101,7 +103,7 @@ if (~test.batch) && display.plot
             p = fields{ii};
             
             % Get chain values and truth
-            p_arr = cat(2,mc_param{aa}.(p));
+            p_arr = cat(2,mc{aa}.param.(p));
             p_true = model.(p);
             
             if any(strcmp(p, {'sigx', 'sigy'}))
@@ -121,6 +123,11 @@ if (~test.batch) && display.plot
             
         end
         
+    end
+    
+    figure, hold on
+    for aa = 1:num_algs
+        plot(mean(cat(1,mc{aa}.bess{:}),1),'linewidth',2,'color',0.5+0.5*[rand rand rand]);
     end
     
 end

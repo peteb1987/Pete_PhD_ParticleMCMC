@@ -36,9 +36,16 @@
 \newcommand{\pw}[1]{w_{#1}}
 \newcommand{\pss}[1]{^{(#1)}}
 \newcommand{\nump}{N}
+\newcommand{\utf}{\phi}
+\newcommand{\cised}{\eta}
+\newcommand{\cisi}{c}
+\newcommand{\notcisi}{-c}
+\newcommand{\spw}[1]{\tilde{w}_{#1}}
 
 
 \begin{document}
+
+\maketitle
 
 \section{Extended Target Distribution}
 
@@ -149,13 +156,13 @@ and obtain the conditional,
 Now the obvious problem is that we cannot sample from this directly. Instead we can use Metropolis-within-Gibbs, using the proposal distribution,
 %
 \begin{IEEEeqnarray}{rCl}
- \frac{ \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} }{ \sum_j \pw{\ti}\pss{j} } \spd(\ls{\ti}\pss{\ai{\ti}} | \ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}, \ls{\ti+1}\pss{\ai{\ti+1}}, \ob{\ti}) \nonumber      .
+ \frac{ \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} }{ \sum_j \pw{\ti}\pss{j} } \spd(\ls{\ti}\pss{\ai{\ti}} | \ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}, \ls{\ti+1}\pss{\ai{\ti+1}}, \ob{\ti}) \label{eq:rbs_proposal}      .
 \end{IEEEeqnarray}
 %
 The target:proposal ratio is then proportional to,
 %
 \begin{IEEEeqnarray}{rCl}
- \frac{ \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) }{ \spd(\ls{\ti}\pss{\ai{\ti}} | \ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}, \ls{\ti+1}\pss{\ai{\ti+1}}, \ob{\ti}) }     .
+ \frac{ \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) }{ \spd(\ls{\ti}\pss{\ai{\ti}} | \ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}, \ls{\ti+1}\pss{\ai{\ti+1}}, \ob{\ti}) } \label{eq:rbs_tgtppslratio}     .
 \end{IEEEeqnarray}
 %
 The acceptance ratio comprises this quantity for the current and proposed values of $(\ls{\ti}\pss{\ai{\ti}}, \an{\ti}\pss{\ai{\ti}})$. The downside to this is that we need to decide how many MH steps to do. Furthermore, if there are only a few values of $\an{\ti}\pss{\ai{\ti}}$ which lead to plausible candidates then this is inefficient.
@@ -164,8 +171,31 @@ The acceptance ratio comprises this quantity for the current and proposed values
 
 \section{Conditional Importance Sampling}
 
+Intuitively, we should be able to sample the troublesome conditional distribution using importance sampling-resampling. Sample a set of $\nump$ particles from the proposal \eqref{eq:rbs_proposal}, weight them using \eqref{eq:rbs_tgtppslratio}, then resample one particle from the set according to these new weights. Standard importance sampling results imply that this provides a sample from the correct distribution when $\nump\to\infty$. However, if we instead use \emph{conditional importance sampling}, akin to the conditional particle filter, then we can ensure that the marginal distribution of the sampled particle is exactly equal to the target distribution for $\nump>1$.
 
+We are going to introduce a second set of particles at time instant $\ti$, so to avoid confusion, lets clarify our objective. We need to sample from a target distribution with the following form,
+%
+\begin{IEEEeqnarray}{rCl}
+\ed(\ls{\ti}, \an{\ti} | \lsset{\ti-1}) & = & \frac{ \pw{\ti}\pss{\an{\ti}} \utf(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) }{ \sum_j \pw{\ti}\pss{j} \int \utf(\ls{\ti}|\ls{\ti-1}\pss{j}) d\ls{\ti} }      .
+\end{IEEEeqnarray}
+%
+We begin the process with a sample from this distribution, and now we wish to draw a fresh one.
 
+Define an extended target distribution over a particle set,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cised(\lsset{\ti}, \anset{\ti}, \cisi) & = & \cised(\ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi}, \cisi) \: \cised(\lsset{\ti}\pss{\notcisi}, \anset{\ti}\pss{\notcisi} | \ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi}, \cisi) \nonumber \\
+ & = & \frac{1}{\nump} \ed(\ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi} | \lsset{\ti-1}) \times \prod_{i\ne\cisi} \frac{\pw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \pw{\ti}\pss{j}} \spd(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \nonumber \\
+ & = & \prod_{i} \frac{\pw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \pw{\ti}\pss{j}} \spd(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \times \frac{ \utf(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }{ \spd(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) } \nonumber \\
+ & & \qquad \times \frac{ 1 }{ \nump \sum_j \pw{\ti}\pss{j} \int \utf(\ls{\ti}|\ls{\ti-1}\pss{j}) d\ls{\ti}  }
+\end{IEEEeqnarray}
+%
+which clearly admits the desired distribution as a marginal. The extended distribution is targeted using Gibbs sampling. An initial value of $\cisi$ is sampled from a uniform distribution over the particle indexes and the starting values assigned to this index. We then draw from $\cised(\lsset{\ti}\pss{\notcisi}, \anset{\ti}\pss{\notcisi} | \ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi}, \cisi)$, providing a set of candidate particles, then select one by drawing from,
+%
+\begin{IEEEeqnarray}{rCl}
+ \cised(\cisi | \lsset{\ti}, \anset{\ti}) & = & \frac{ \spw{\ti}\pss{\cisi} }{ \sum_j \spw{\ti}\pss{j} } \nonumber \\
+ \spw{\ti}\pss{\cisi} & = & \frac{ \utf(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }{ \spd(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }     .
+\end{IEEEeqnarray}
 
 
 \end{document}

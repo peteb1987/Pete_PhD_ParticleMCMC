@@ -12,54 +12,54 @@ else
     prior_vr = model.x1_vr;
 end
 
-% %%% EKF-based proposal
-% 
-% % Point to linearise about
-% lin_state = prior_mn;
-% 
-% % Linearise
-% H = tracking_obsjacobian(model, lin_state);
-% 
-% % Create "augmented observation"
-% if ~isempty(next_state) && ~isempty(observ)
-%     aug_obs = [next_state; observ];
-%     aug_mn = [A*lin_state; tracking_h(model, lin_state)];
-%     aug_trans = [A; H];
-%     aug_vr = blkdiag(Q, R);
-% elseif isempty(next_state) && ~isempty(observ)
-%     aug_obs = observ;
-%     aug_mn = tracking_h(model, lin_state);
-%     aug_trans = H;
-%     aug_vr = R;
-% elseif ~isempty(next_state) && isempty(observ)
-%     aug_obs = next_state;
-%     aug_mn = A*lin_state;
-%     aug_trans = A;
-%     aug_vr = Q;
-% end
-% 
-% % KF update
-% [ppsl_mn, ppsl_vr] = ekf_update1(prior_mn, prior_vr, aug_obs, aug_trans, aug_vr, aug_mn);
+%%% EKF-based proposal
 
-%%% UKF-based proposal
+% Point to linearise about
+lin_state = prior_mn;
+
+% Linearise
+H = tracking_obsjacobian(model, lin_state);
 
 % Create "augmented observation"
 if ~isempty(next_state) && ~isempty(observ)
     aug_obs = [next_state; observ];
-    obs_func = @(x, ~) [A*x; tracking_h(model, x)];
+    aug_mn = [A*lin_state; tracking_h(model, lin_state)];
+    aug_trans = [A; H];
     aug_vr = blkdiag(Q, R);
 elseif isempty(next_state) && ~isempty(observ)
     aug_obs = observ;
-    obs_func = @(x, ~) tracking_h(model, x);
+    aug_mn = tracking_h(model, lin_state);
+    aug_trans = H;
     aug_vr = R;
 elseif ~isempty(next_state) && isempty(observ)
     aug_obs = next_state;
-    obs_func = @(x, ~) A*x;
+    aug_mn = A*lin_state;
+    aug_trans = A;
     aug_vr = Q;
 end
 
 % KF update
-[ppsl_mn, ppsl_vr] = ukf_update1(prior_mn, prior_vr, aug_obs, obs_func, aug_vr);
+[ppsl_mn, ppsl_vr] = ekf_update1(prior_mn, prior_vr, aug_obs, aug_trans, aug_vr, aug_mn);
+
+% %%% UKF-based proposal
+% 
+% % Create "augmented observation"
+% if ~isempty(next_state) && ~isempty(observ)
+%     aug_obs = [next_state; observ];
+%     obs_func = @(x, ~) [A*x; tracking_h(model, x)];
+%     aug_vr = blkdiag(Q, R);
+% elseif isempty(next_state) && ~isempty(observ)
+%     aug_obs = observ;
+%     obs_func = @(x, ~) tracking_h(model, x);
+%     aug_vr = R;
+% elseif ~isempty(next_state) && isempty(observ)
+%     aug_obs = next_state;
+%     obs_func = @(x, ~) A*x;
+%     aug_vr = Q;
+% end
+% 
+% % KF update
+% [ppsl_mn, ppsl_vr] = ukf_update1(prior_mn, prior_vr, aug_obs, obs_func, aug_vr);
 
 %%%%%
 

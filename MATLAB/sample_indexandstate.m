@@ -1,4 +1,4 @@
-function [ index, state ] = sample_indexandstate( fh, algo, model, kk, pf_kk, init_index, init_state, next_state, observ )
+function [ index, state, bess ] = sample_indexandstate( fh, algo, model, kk, pf_kk, init_index, init_state, next_state, observ )
 %SAMPLE_INDEXANDSTATE Sample an ancestor and a state for a single time
 %instant from their joint posterior, using Metropolis-Hastings. This is the
 %main step in the improved backward simulation particle Gibbs algorithm.
@@ -82,23 +82,35 @@ if algo.use_MH_with3
     
 else
     
-    % Sample new state for each particle
+    % Create some arrays
     interm_state = zeros(model.ds, algo.N);
     interm_weight = zeros(1, algo.N);
+    interm_index = zeros(1, algo.N);
+    
+    % First particle is the reference
+    interm_state(:,1) = init_state;
+    interm_index(1) = init_index;
+    
+    % Sample new indexs for each other particle
     if kk > 0
-        ancestor = sample_weights(pf_kk.weight, algo.N);
+        interm_index(2:end) = sample_weights(pf_kk.weight, algo.N-1);
     end
     for ii = 1:algo.N
         
         % Get previous state
         if kk > 0
-            prev_state = pf_kk.state(:,ancestor(ii));
+            prev_state = pf_kk.state(:,interm_index(ii));
         else
             prev_state = [];
         end
         
         % Sample new state
-        [state, ppsl_prob] = feval(fh.stateproposal, algo, model, prev_state, next_state, observ);
+        if ii > 1
+            [state, ppsl_prob] = feval(fh.stateproposal, algo, model, prev_state, next_state, observ);
+        else
+            state = interm_state(:,1);
+            [~, ppsl_prob] = feval(fh.stateproposal, algo, model, prev_state, next_state, observ, state);
+        end
         
         % Calculate probabilities
         if kk > 0
@@ -120,13 +132,13 @@ else
         
     end
     
-%     calc_ESS(interm_weight)
+    bess = calc_ESS(interm_weight);
     
     % Sample an ancestor
-    interm_index = sample_weights(interm_weight, 1);
-    state = interm_state(:,interm_index);
+    idx = sample_weights(interm_weight, 1);
+    state = interm_state(:,idx);
     if kk > 0
-        index = ancestor(interm_index);
+        index = interm_index(idx);
     else
         index = 0;
     end
