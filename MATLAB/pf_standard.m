@@ -2,7 +2,7 @@ function [ pf ] = pf_standard( fh, algo, model, observ )
 %PF_STANDARD Run a standard particle filter
 
 % Initialise arrays
-pf = struct('state', cell(model.K,1), 'ancestor', cell(model.K,1), 'weight', cell(model.K,1));
+pf = struct('state', cell(model.K,1), 'ancestor', cell(model.K,1), 'weight', cell(model.K,1), 'marg_lhood', cell(model.K,1));
 pf(1).state = zeros(model.ds, algo.N);
 pf(1).ancestor = zeros(1, algo.N);
 pf(1).weight = zeros(1, algo.N);
@@ -18,7 +18,7 @@ for ii = 1:algo.N
     elseif algo.proposal == 2
         % Other
         [state, ppsl_prob] = feval(fh.stateproposal, algo, model, [], [], observ(:,1));
-        [~, trans_prob] = feval(fh.stateprior, model);
+        [~, trans_prob] = feval(fh.stateprior, model, state);
         [~, obs_prob] = feval(fh.observation, model, state, observ(:,1));
         
         pf(1).state(:,ii) = state;
@@ -63,6 +63,8 @@ for kk = 2:model.K
     end
     
 %     calc_ESS(pf(kk).weight)
+
+    pf(kk).marg_lhood = logsumexp(pf(kk).weight');
 
 end
 

@@ -1,5 +1,5 @@
-function [ mc ] = particle_gibbs( fh, display, algo, known, observ )
-%PARTICLE_GIBBS Run particle gibbs algorithm to estimate parameters and
+function [ mc ] = particle_metropolishastings( fh, display, algo, known, observ )
+%PARTICLE_METROPOLISHASTINGS Run particle MMH algorithm to estimate parameters and
 %states from observations.
 
 % Initialise array for parameters in Markov chain
@@ -16,6 +16,7 @@ mc.traje = struct('state', cell(algo.R,1), 'index', cell(algo.R,1), 'weight', ce
 
 % Sample unknown parameters from prior
 param = algo.start_param;
+param_prior = feval(fh.paramprior, algo, known, param);
 
 % Merge known and unknown parameters
 model = catstruct(known, param);
@@ -27,6 +28,7 @@ end
 
 % Run particle filter
 pf = pf_standard(fh, algo, model, observ);
+lhood = sum([pf.marg_lhood]);
 
 % Sample a trajectory
 [traje, bess] = sample_trajectory(fh, algo, model, pf, observ);
@@ -35,6 +37,9 @@ pf = pf_standard(fh, algo, model, observ);
 mc.param(1) = param;
 mc.traje(1) = traje;
 mc.bess{1} = bess;
+
+% Counter
+acc_count = 0;
 
 % Markov chain
 for rr = 2:algo.R
@@ -45,18 +50,36 @@ for rr = 2:algo.R
         t0 = cputime;
     end
     
-    % Sample parameters
-    param = feval(fh.paramconditional, algo, known, param, traje, observ);
-    param.sigx
+    % Propose new parameters
+    [ppsl_param, ppsl_forw_prob, ppsl_back_prob] = feval(fh.paramproposal, algo, known, param, traje, observ);
+    ppsl_param_prior = feval(fh.paramprior, algo, known, ppsl_param);
     
     % Merge known and unknown parameters
-    model = catstruct(known, param);
+    ppsl_model = catstruct(known, ppsl_param);
     
     % Run conditional particle filter
-    pf = pf_conditional(fh, algo, model, observ, traje);
+    pf = pf_standard(fh, algo, ppsl_model, observ);
     
-    % Sample a trajectory
-    [traje, bess] = sample_trajectory(fh, algo, model, pf, observ);
+    % Calculate probabilities
+    ppsl_lhood = sum([pf.marg_lhood]);
+
+    % Calculate MH acceptance probability
+    ap = (ppsl_lhood - lhood)...
+         + sum(ppsl_param_prior - param_prior)...
+         - sum(ppsl_forw_prob - ppsl_back_prob);
+    
+    % Accept?
+    if log(rand) < ap
+        
+        param = ppsl_param;
+        lhood = ppsl_lhood;
+    
+        % Sample a trajectory
+        [traje, bess] = sample_trajectory(fh, algo, model, pf, observ);
+        
+        acc_count = acc_count + 1;
+        
+    end
     
     % Store
     mc.param(rr) = param;
@@ -64,6 +87,8 @@ for rr = 2:algo.R
     mc.bess{rr} = bess;
     
 end
+
+mc.acc_count = acc_count;
 
 if display.text
     fprintf(1, '     Iteration took %fs.\n', cputime-t0);

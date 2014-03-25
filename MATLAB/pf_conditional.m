@@ -5,7 +5,7 @@ N = algo.N;
 K = model.K;
 
 % Initialise arrays
-pf = struct('state', cell(K,1), 'ancestor', cell(K,1), 'weight', cell(K,1));
+pf = struct('state', cell(K,1), 'ancestor', cell(K,1), 'weight', cell(K,1), 'marg_lhood', cell(model.K,1));
 pf(1).state = zeros(model.ds, N);
 pf(1).ancestor = zeros(1, N);
 pf(1).weight = zeros(1, N);
@@ -108,6 +108,8 @@ for kk = 2:K
     end
     
 %     calc_ESS(pf(kk).weight)
+
+    pf(kk).marg_lhood = logsumexp(pf(kk).weight');
 
 end
 

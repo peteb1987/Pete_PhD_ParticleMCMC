@@ -42,19 +42,19 @@ switch algo.traje_sampling
     case 2  % Particle Gibbs with backward-simulation
         
         % Get final state
-        traje.state(:,K) = pf(K).state(:, traje.index(1,K));
+        traje.state(:,K) = pf(K).state(:, traje.index(K));
         
         % Loop backwards through time
         for kk = K-1:-1:1
             
             % Sample an index
-            init_index = pf(kk+1).ancestor(1, traje.index(1,kk+1) );
+            init_index = pf(kk+1).ancestor(traje.index(kk+1) );
             next_state = traje.state(:,kk+1);
             [traje.index(kk), bess(kk)] = sample_index( fh, algo, model, pf(kk), init_index, next_state );
             
             % Get state and weight
-            traje.state(:,kk) = pf(kk).state(:, traje.index(1,kk));
-            traje.weight(:,kk) = pf(kk).weight(:, traje.index(1,kk));
+            traje.state(:,kk) = pf(kk).state(:, traje.index(kk));
+            traje.weight(kk) = pf(kk).weight(traje.index(kk));
             
         end
         
@@ -87,7 +87,7 @@ switch algo.traje_sampling
             traje.state(:,kk) = chain_state;
             
             % Get weight
-            traje.weight(:,kk) = pf(kk).weight(:, traje.index(1,kk));
+            traje.weight(kk) = pf(kk).weight(traje.index(kk));
             
         end
         

@@ -7,7 +7,7 @@ algo.R = 5000;                   % Number of MCMC steps
 algo.N = 100;                    % Number of particles in PF
 algo.M = 20;                    % Number of MH steps used by improved backward-simulation
 
-algo.traje_sampling = 3;        % 1 = standard particle Gibbs
+algo.traje_sampling = 1;        % 1 = standard particle Gibbs
                                 % 2 = particle Gibbs with backward-simulation
                                 % 3 = particle Gibbs with improved backward-simulation
 algo.use_MH_with2 = false;      % If true, and traje_sampling==2, use MH to sample backwards weights
@@ -26,10 +26,11 @@ if ~isfield(known, 'bias'), algo.start_param.bias = 0; end
 if ~isfield(algo, 'start_param'), algo.start_param = struct; end
 
 % MH proposal parameters
+algo.ppsl_sigx_vr = 0.05;
 
 % Hyperparameters for unknown parameter priors
-algo.sigx_shape = 1;
-algo.sigx_scale = 1;
+algo.sigx_shape = 1/1000;
+algo.sigx_scale = 1000;
 algo.bias_mn = 0;
 algo.bias_vr = 10^2;
 algo.sigr_shape = 1;

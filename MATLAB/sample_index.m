@@ -43,6 +43,9 @@ else
     % Sample an ancestor
     index = sample_weights(bs_weight, 1);
     
+%     norm_bs_weight = bs_weight-logsumexp(bs_weight');
+%     exp(norm_bs_weight(init_index))
+    
 end
 
 end

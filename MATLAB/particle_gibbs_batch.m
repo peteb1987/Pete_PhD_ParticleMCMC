@@ -38,6 +38,7 @@ test.model = 2;             % tracking
 
 % Test number
 test_num = rem(sys_num-1,5)+1;
+rpt_num = floor((sys_num+4)/5);
 
 %%% TEST CASES %%%
 algos = [1 1 2 2 3];
@@ -45,14 +46,14 @@ parts = [100 200 100 200 100];
 
 test.algorithms = algos(test_num);
 test.filter_particles = parts(test_num);
-rand_seed = test_num;
-test.name = ['PGtests_' num2str(test.algorithms) '_' num2str(test.filter_particles) '_' num2str(test_num)];
+rand_seed = rpt_num;
+test.name = ['PGtests_' num2str(test.algorithms) '_' num2str(test.filter_particles) '_' num2str(rpt_num)];
 
 % Run the script
 particle_gibbs_test;
 
 % Save results
-save(test.name, 'rand_seed', 'algo', 'model', 'known', 'state', 'observ', 'rt', 'mc_param', 'mc_state');
+save(test.name, 'rand_seed', 'algo', 'model', 'known', 'state', 'observ', 'rt', 'mc');
 
 % SHOW WE'VE FINISHED
 disp(['Test:' num2str(sys_num) ' - DONE!']);
