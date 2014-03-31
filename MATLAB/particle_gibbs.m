@@ -47,7 +47,6 @@ for rr = 2:algo.R
     
     % Sample parameters
     param = feval(fh.paramconditional, algo, known, param, traje, observ);
-    param.sigx
     
     % Merge known and unknown parameters
     model = catstruct(known, param);

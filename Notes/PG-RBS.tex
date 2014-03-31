@@ -3,6 +3,16 @@
 \usepackage{amsmath}
 \usepackage{IEEEtrantools}
 
+\usepackage{tikz}
+\usepackage{pgfplots}
+ \usetikzlibrary{plotmarks}
+ \pgfplotsset{compat=newest}
+ \pgfplotsset{plot coordinates/math parser=false}
+ \usepgfplotslibrary{external}
+ \tikzexternalize[prefix=tikz/]
+
+\usepackage{subfig}
+
 
 \usepackage[scaled]{helvet}\renewcommand*\familydefault{\sfdefault}\usepackage[T1]{fontenc}
 \usepackage{setspace}\onehalfspacing
@@ -98,7 +108,7 @@ This is a collapsed Gibbs move. We need to manipulate the extended target distri
   & & \times \prod_{i\ne\ai{1}} \pd(\ls{1}\pss{i}) \prod_{k=1}^{\ti-1} \left[ \prod_{i\ne\ai{k}} \frac{ \pw{k-1}\pss{\an{k}\pss{i}} }{ \sum_j \pw{k-1}\pss{j} } \pd(\ls{k}\pss{i}|\ls{k-1}\pss{\an{k}\pss{i}}) \right] \nonumber \\
  & = & \frac{\den(\param|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti:\timax}|\ls{\ti:\timax}\pss{\ai{\ti:\timax}},\param) }{ \den(\ob{1:\timax}|\param) } \nonumber \\
  & & \times \prod_{i} \pd(\ls{1}\pss{i}) \prod_{k=1}^{\ti-1} \left[ \prod_{i} \frac{ \pw{k-1}\pss{\an{k}\pss{i}} }{ \sum_j \pw{k-1}\pss{j} } \pd(\ls{k}\pss{i}|\ls{k-1}\pss{\an{k}\pss{i}}) \right] \nonumber \\
- & & \times \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \times \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \nonumber      .  
+ & & \times \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \times \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \nonumber      .
 \end{IEEEeqnarray}
 %
 Then marginalise $\an{\ti}\pss{\ai{\ti}}$,
@@ -198,4 +208,58 @@ which clearly admits the desired distribution as a marginal. The extended distri
 \end{IEEEeqnarray}
 
 
-\end{document}
+\section{Simulations Testing}
+
+\subsection{The Model}
+Particle Gibbs (PG), Particle Gibbs with Backward Simulation (PG-BS) and Particle Gibbs with Refreshed Backward Simulation (PG-RBS) were tested on a tracking model. The transition model is 3D near constant velocity motion, and the observation model bearing, elevation and range measurements. The parameter to be learnt is the scale factor on the transition covariance matrix, which characterises the target manoeuvrability. The data set has 100 time steps.
+
+\subsection{Algorithm Settings}
+Each algorithm was run for 5000 iterations, with a burn in of 1000. PG and PG-BS were run twice, with 100 and 200 particles each. PG-RBS was run with 100 particles. PG-RBS with 100 particles takes roughly the same time as PG-BS with 200 particles.
+
+\subsection{Results}
+PG does not mix at all. Parameter estimates do not approach the true value. See figure~\ref{fig:chain_init_fail}.
+
+PG-BS and PG-RBS do converge. Figure~\ref{fig:sample_hist} shows the posterior histograms. Figure~\ref{fig:chain_init} shows the first 200 iterations, showing the faster convergence of the PG-RBS algorithm. Figure~\ref{fig:acf} shows the autocorrelation function plots. This indicates faster mixing from PG-RBS with both equal-time and equal-particle equivalents.
+
+The results shown are for one set of data with a single random seed. Repeating the tests with 4 other data sets produces similar results.
+
+\begin{figure}
+\centering
+\input{chain_init_PG_200.tikz}
+\caption{First 200 iterations using PG with 200 particles. Chain fails to converge at all, even after 5000 iterations.}
+\label{fig:chain_init_fail}
+\end{figure}
+
+\begin{figure}
+\centering
+\input{chain_init.tikz}
+\caption{First 200 iterations using PG-BS and PG-RBS. Faster convergence with PG-RBS.}
+\label{fig:chain_init}
+\end{figure}
+
+\begin{figure}
+\centering
+\input{acf_plot.tikz}
+\caption{Autocorrelation plot for PG-BS and PG-RBS.}
+\label{fig:acf}
+\end{figure}
+
+\begin{figure}
+\centering
+\subfloat[PG-BS (N=100)]{ \input{hist_PGBS_100.tikz} }
+\subfloat[PG-BS (N=200)]{ \input{hist_PGBS_200.tikz} } \\
+\subfloat[PG-RBS (N=100)]{ \input{hist_PGRBS_100.tikz} }
+\caption{Posterior sample histograms.}
+\label{fig:sample_hist}
+\end{figure}
+
+
+\section{Extensions}
+\begin{itemize}
+ \item What happens if we sample new states over multiple time steps? How does this improve the mixing? What happens as the process noise becomes smaller and smaller. (We will need to sample more states to get the trajectories to ``match up'', but the particle filter will work better, so maybe backward simulation becomes unnecessary?)
+ \item Do we need state sampling at every step?
+\end{itemize}
+
+
+
+\end{document} 

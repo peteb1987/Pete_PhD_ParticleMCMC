@@ -3,7 +3,7 @@ function [ algo ] = tracking_setalgo( test, known )
 % Algorithm parameters
 
 algo.proposal = 2;              % 1 = bootstrap, 2 = alternative
-algo.R = 5000;                   % Number of MCMC steps
+algo.R = 200;                   % Number of MCMC steps
 algo.N = 100;                    % Number of particles in PF
 algo.M = 20;                    % Number of MH steps used by improved backward-simulation
 

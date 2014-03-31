@@ -17,8 +17,8 @@ if ~exist('test', 'var') || ~isfield(test,'batch') || (~test.batch)
     % Flags
     test.batch = false;
     test.model = 2;
-    test.algorithms = [1 2 3];
-    test.filter_particles = [100 100 100];
+    test.algorithms = [4];
+    test.filter_particles = [500 100 100];
     
     % DEFINE RANDOM SEED
     rand_seed = 1;
