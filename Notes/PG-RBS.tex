@@ -2,6 +2,11 @@
 
 \usepackage{amsmath}
 \usepackage{IEEEtrantools}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{subfig}
+
+\usepackage{natbib}
 
 \usepackage{tikz}
 \usepackage{pgfplots}
@@ -11,7 +16,7 @@
  \usepgfplotslibrary{external}
  \tikzexternalize[prefix=tikz/]
 
-\usepackage{subfig}
+
 
 
 \usepackage[scaled]{helvet}\renewcommand*\familydefault{\sfdefault}\usepackage[T1]{fontenc}
@@ -28,9 +33,27 @@
 %%% MACROS %%%
 \newcommand{\ti}{t}
 \newcommand{\timax}{T}
-\newcommand{\param}{\theta}
+
+\newcommand{\pr}{\theta}
+\newcommand{\PR}{\Theta}
+\newcommand{\prspace}{\Theta}
+
 \newcommand{\ls}[1]{x_{#1}}
+\newcommand{\LS}[1]{X_{#1}}
+\newcommand{\lsspace}{\mathcal{X}}
+
 \newcommand{\ob}[1]{y_{#1}}
+\newcommand{\OB}[1]{Y_{#1}}
+\newcommand{\obspace}{\mathcal{Y}}
+
+\newcommand{\nc}{Z}
+
+\newcommand{\toas}{\stackrel{\text{a.s.}}{\to}}
+\newcommand{\testfunc}{\zeta}
+\newcommand{\prob}{P}
+
+\newcommand{\id}[1]{q_{#1}}
+
 \newcommand{\an}[1]{a_{#1}}
 \newcommand{\ai}[1]{b_{#1}}
 \newcommand{\notai}[1]{-b_{#1}}
@@ -39,8 +62,8 @@
 \newcommand{\anset}[1]{\mathbf{a}_{#1}}
 \newcommand{\den}{p}
 \newcommand{\ed}{\pi}
-\newcommand{\td}{f_{\theta}}
-\newcommand{\od}{g_{\theta}}
+\newcommand{\td}[1]{f_{\theta,#1}}
+\newcommand{\od}[1]{g_{\theta,#1}}
 \newcommand{\pd}{q}
 \newcommand{\spd}{\rho}
 \newcommand{\pw}[1]{w_{#1}}
@@ -57,20 +80,157 @@
 
 \maketitle
 
+\begin{abstract}
+ Particle Gibbs, backward simulation, more sampling, better mixing.
+\end{abstract}
+
+
+\section{Introduction}
+Particle Markov chain Monte Carlo (PMCMC) algorithms \cite{Andrieu2010,Olsson2011,Chopin2013,Lindsten2014} provide an elegant and effective solution for Bayesian parameter learning with Markovian state space models. By constructing an extended target distribution over the output of a particle filter, it is possible to formulate a Markov chain, the samples from which have the desired target marginal distribution.
+
+In this paper we consider in particular the \emph{particle Gibbs} (PG) algorithm, introduced in \cite{Andrieu2010}. This alternately samples values for the latent states and unknown parameters from appropriate conditional distributions, the states being drawn using an inner sequential Monte Carlo (SMC) procedure. Like any Gibbs sampler \cite{Geman1984}, this has the advantage over Metropolis-Hastings \cite{Metropolis1953,Hastings1970} of not requiring an accept/reject stage. However, the resulting chains are still liable to mix slowly if the SMC process degenerates.
+
+It is possible to reduce degeneracy, and thus improve the mixing of the PG Markov chain, by incorporating additional sampling steps, either during the forward sampling \cite{Lindsten2014} (known as particle Gibbs with ancestor sampling --- PG-AS), or in an additional backward sweep \cite{Whiteley2010b,Lindsten2012} (known as particle Gibbs with backward simulation --- PG-BS). In PG, the latent state values are represented by the output of a particle filter, together with a sequence of ancestor index variables indicating a reference trajectory. The improvement stems from allowing these ancestor index variables to be sampled separately at each time step, rather than simultaneously for the entire trajectory.
+
+For some models, mixing may be slow even when using PG-BS or PG-AS. Specifically, when the model transition density is tightly concentrated, the probability of sampling any change in the particle ancestry is low. Intuitively, the problem is that the only state history consistent with a particular future is that which was originally used to generate that future. We can mitigate this effect by using a \emph{refreshed} backward simulation procedure, along the lines of \cite{Bunch2013}. When sampling an ancestor index for the reference trajectory, we simultaneously sample a new value for the associated state. This allows us some leeway to steer the potential state histories towards the fixed future, consequently increasing the probability of changing the ancestry and thus improving the mixing of the Markov chain.
+
+The paper proceeds as follows. First we review the basic particle filter and particle Gibbs algorithms. We then discuss the use of backward simulation in particle Gibbs and introduce the use of refreshed backward simulation. An appropriate Markov kernel is introduced to target the necessary conditional distribution. The efficacy of the new method is illustrated with a simulation example.
+
+
+
+\subsection{State Space Modelling}
+We consider a standard Markovian state space model with a sequence of latent states $\ls{\ti} \in \lsspace : \ti = 1,\dots,\timax$, and a corresponding sequence of observations $\ob{\ti} \in \obspace : \ti = 1,\dots,\timax$. We assume that the transition and observation distributions have associated densities with respect to some convenient measure (e.g. Lebesgue),
+%
+\begin{IEEEeqnarray}{rclCl}
+ \ls{\ti}&|&\ls{\ti-1} & \sim & \td{\ti}(\ls{\ti}|\ls{\ti-1}) \nonumber \\
+ \ob{\ti}&|&\ls{\ti}   & \sim & \od{\ti}(\ob{\ti}|\ls{\ti})   \nonumber       .
+\end{IEEEeqnarray}
+%
+We use the convention that $\td{1}(\ls{1}|\ls{0})=\td{1}(\ls{1})$ is the prior density of the first state. The variable $\pr \in \prspace$ is a collection of unknown model parameters upon which $\td{\ti}$ and $\od{\ti}$ depend, which has a prior density $\den(\pr)$.
+
+Our objective is to approximate the joint posterior density over all the unknown variables,
+%
+\begin{IEEEeqnarray}{rCl}
+ \den(\pr, \ls{1:\timax} | \ob{1:\timax}) & = & \frac{1}{\nc} \den(\pr) \prod_{\ti=1}^{\timax} \od{\ti}(\ob{\ti}|\ls{\ti}) \td{\ti}(\ls{\ti}|\ls{\ti-1}) \label{eq:full-posterior}      .
+\end{IEEEeqnarray}
+%
+where,
+%
+\begin{IEEEeqnarray}{rCl}
+ \nc & = & \den(\ob{1:\timax}) = \int \prod_{\ti=1}^{\timax} \od{\ti}(\ob{\ti}|\ls{\ti}) \td{\ti}(\ls{\ti}|\ls{\ti-1}) d\ls{1:\timax} \nonumber      ,
+\end{IEEEeqnarray}
+%
+and in which sequences of random variables are denoted $z_{r:s} = \{z_{r}, \dots, z_{s}\}$.
+
+
+
+\section{Particle Methods}
+
+\subsection{Particle Filtering}
+The particle filter is a sequential Monte Carlo algorithm which recursively approximates the sequence of filtering densities $\den(\ls{1:\ti}|\pr,\ob{1:\ti}) : \ti = 1,\dots,\timax$. This is achieved by propagating forwards a collection of $\nump$ particles $\{\ls{1:\ti}\pss{i}: i = 1,\dots,\nump\}$, each of which is a realisation of the state sequence, along with a set of associated weights $\{\pw{\ti}\pss{i}: i = 1,\dots,\nump\}$, such that for an arbitrary test function $\testfunc$,
+%
+\begin{IEEEeqnarray}{rClCl}
+ \frac{\sum_{i=1}^{\nump} \pw{\ti}\pss{i} \testfunc(\ls{1:\ti}\pss{i})}{\sum_{i=1}^{\nump} \pw{\ti}\pss{i}} & \toas & \int \testfunc(\ls{1:\ti}) \den(\ls{1:\ti}|\pr,\ob{1:\ti}) d\ls{1:\ti} \nonumber & \quad \text{as} \quad & \nump \to \infty    .
+\end{IEEEeqnarray}
+
+Each step begins by sampling a vector of ancestor indexes $\anset{\ti} = \{\an{\ti}\pss{i} : i = 1,\dots,\nump\}$ where $\an{\ti}\pss{i} \in \{1,\dots,\nump\}$. Here we constrain this selecting stage to use simple multinomial sampling, such that each ancestor index is sampled independently with $\prob(\an{\ti}\pss{i}=j)=\frac{\pw{\ti}\pss{j}}{\sum_k \pw{\ti}\pss{k}}$. Generalisations to use auxiliary sampling and variance reduction methods --- such as residual, stratified and systematic sampling --- can be applied by following \citep{Chopin2013,Lindsten2012}... {\meta check that they can}
+
+The second stage is to sample a new value of the state conditional on the ancestry from an importance density $\id{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})$. Note that $\id{\ti}$ may depend on the observation sequence $\ob{1:\timax}$, but this is suppressed for clarity of presentation. Finally, particle weights are calculated to compensate for the discrepancy between the true distribution of the particles and the targeted posterior. The procedure is set out in algorithm~\ref{alg:particle-filter}.
+
+\begin{algorithm}
+\begin{algorithmic}[1]
+ \STATE Sample $\ls{1}\pss{i} \sim \id{1}(\cdot)$.
+ \STATE Weight $\pw{1}\pss{i} = \frac{\td{1}(\ls{1}\pss{i})\od{1}(\ob{1}|\ls{1}\pss{i})}{\id{1}(\ls{1}\pss{i})}$.
+ \FOR{$\ti=1,\dots,\timax$}
+  \STATE Sample $\an{\ti}\pss{i} \sim \frac{\pw{\ti}\pss{\an{\ti}}}{\sum_j \pw{\ti}\pss{j}}$.
+  \STATE Sample $\ls{\ti}\pss{i} \sim \id{\ti}(\cdot|\ls{\ti-1})$.
+  \STATE Weight $\pw{\ti}\pss{i} = \frac{\td{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})\od{\ti}(\ob{\ti}|\ls{\ti}\pss{i})}{\id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})}$.
+ \ENDFOR
+\end{algorithmic}
+\caption{Particle Filter}
+\label{alg:particle-filter}
+\end{algorithm}
+
+State trajectories are constructed by tracing the lineage of the particles described by the ancestor indexes. Recursively we have,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{1:\ti}\pss{i} & = & \ls{1:\ti-1}\pss{\an{\ti}\pss{i}} \cup \ls{\ti}\pss{i} \nonumber     .
+\end{IEEEeqnarray}
+
+
+
+\subsection{Particle Gibbs}
+
+First we introduce the following additional notation. Let $\aifinal$ be the index of a selected reference trajectory from the particle filter output, and let $\ai{\ti}=\an{\ti+1}\pss{\at{\ti+1}} : \ti = 1,\dots,\timax-1$ be used to indicate ancestry of this particle.
+
+Particle MCMC algorithms target an extended distribution of which the desired posterior \eqref{eq:full-posterior} is a marginal,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ed(\pr, \lsset{1:\timax}, \anset{2:\timax}, \aifinal) & = & \frac{1}{\nump^\timax} \den(\pr, \ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax}) \nonumber \\
+  & & \qquad  \times \prod_{i\ne\ai{1}} \pd(\ls{1}\pss{i}) \prod_{\ti=1}^{\timax} \left[ \prod_{i\ne\ai{\ti}} \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \pd(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \right] \label{eq:extended_dist_v1}     .
+\end{IEEEeqnarray}
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Backwards Simulation}
+The final step of the particle filter returns a collection of weighted particles approximating the posterior state density $\den(\ls{1:\timax}|\ob{1:\timax})$. However, this is liable to suffer from \emph{path space degeneracy}. Because only a subset of the possible ancestor indexes are selected at each step, the number of unique states appearing in the trajectories decreases as we look back in time. If $\timax$ is sufficiently large, then there will be a time step before which every particle has the same ancestry.
+
+Backward simulation allows a new state trajectory to be sampled, which will be less correlated with the existing set of particles. 
+
+In standard PG, a new reference trajectory is sampled straight from this collection with probability proportional to the final filter weights. Since the old reference trajectory also appears in the 
+
+
+
+
+{\meta 
+Basic PF\\
+Basic BS\\
+Refreshed BS}
+
+\section{Particle Gibbs}
+Principles
+Extended target distribution
+Particle Gibbs
+PG-BS
+
+\section{Particle Gibbs with Refreshed Backward Simulation}
+Changes relative to PG-BS
+Intuition
+Manipulations of the extended target distribution
+Appropriate Markov Kernels
+ -Metropolis-Hastings
+ -Conditional Importance Sampling
+Multiple steps
+
+\section{Simulations}
+Auto-correlation Comparisons
+Effect of number of steps
+
+
+
+
 \section{Extended Target Distribution}
 
 The particle MCMC extended target distribution is,
 %
 \begin{IEEEeqnarray}{rCl}
- \ed(\param, \lsset{1:\timax}, \anset{2:\timax}, \aifinal) & = & \frac{1}{\nump^\timax} \den(\param, \ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax}) \nonumber \\
+ \ed(\pr, \lsset{1:\timax}, \anset{2:\timax}, \aifinal) & = & \frac{1}{\nump^\timax} \den(\pr, \ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax}) \nonumber \\
   & & \qquad  \times \prod_{i\ne\ai{1}} \pd(\ls{1}\pss{i}) \prod_{\ti=1}^{\timax} \left[ \prod_{i\ne\ai{\ti}} \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \pd(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \right] \label{eq:extended_dist_v1}     .
 \end{IEEEeqnarray}
 %
 The necessary rearrangement of this distribution is achieved by expanding the posterior term using Bayes rule,
 %
 \begin{IEEEeqnarray}{rCl}
- \den(\param, \ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax}) & = & \frac{ \den(\ob{1:\timax} | \ls{1:\timax}\pss{\ai{1:\timax}}, \param) \den(\ls{1:\timax}\pss{\ai{1:\timax}}|\param) \den(\param|\ob{1:\timax}) }{ \den(\ob{1:\timax}|\param) } \nonumber \\
- & = & \frac{\den(\param|\ob{1:\timax})}{\den(\ob{1:\timax}|\param)} \td(\ls{1}\pss{\ai{1}}) \od(\ob{1}|\ls{1}\pss{\ai{1}}) \prod \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \nonumber       ,
+ \den(\pr, \ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax}) & = & \frac{ \den(\ob{1:\timax} | \ls{1:\timax}\pss{\ai{1:\timax}}, \pr) \den(\ls{1:\timax}\pss{\ai{1:\timax}}|\pr) \den(\pr|\ob{1:\timax}) }{ \den(\ob{1:\timax}|\pr) } \nonumber \\
+ & = & \frac{\den(\pr|\ob{1:\timax})}{\den(\ob{1:\timax}|\pr)} \td(\ls{1}\pss{\ai{1}}) \od(\ob{1}|\ls{1}\pss{\ai{1}}) \prod \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \nonumber       ,
 \end{IEEEeqnarray}
 %
 and then repeatedly applying the following identity,
@@ -83,7 +243,7 @@ and then repeatedly applying the following identity,
 This leads us to,
 %
 \begin{IEEEeqnarray}{rCl}
- \ed(\param, \lsset{1:\timax}, \anset{2:\timax}, \aifinal) & = & \frac{\den(\param|\ob{1:\timax})}{\nump^\timax} \frac{\sum_j \pw{\timax}\pss{j}}{\den(\ob{1:\timax}|\param)} \nonumber \\
+ \ed(\pr, \lsset{1:\timax}, \anset{2:\timax}, \aifinal) & = & \frac{\den(\pr|\ob{1:\timax})}{\nump^\timax} \frac{\sum_j \pw{\timax}\pss{j}}{\den(\ob{1:\timax}|\pr)} \nonumber \\
  & & \times \prod_{i} \pd(\ls{1}\pss{i}) \prod_{\ti=1}^{\timax} \left[ \prod_{i} \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \pd(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \right] \nonumber \\
  & & \times \frac{ \pw{\timax}\pss{\aifinal} }{ \sum_j \pw{\timax}\pss{j} } \label{eq:extended_dist_v2}     .
 \end{IEEEeqnarray}
@@ -97,16 +257,16 @@ This is the form we need for particle marginal Metropolis-Hastings.
 In a basic particle Gibbs sampler, we alternately sample $\aifinal$ and $\lsset{1:\timax}\pss{\notai{1:\timax}}, \anset{2:\timax}\pss{\notai{1:\timax}}$. When doing ordinary backward simulation, we add an additional set of steps. Passing backwards through time from $\ti=\timax$ to $\ti=1$, we sample from,
 %
 \begin{IEEEeqnarray}{rCl}
- \ed(\an{\ti}\pss{\ai{\ti}} | \param, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal)      .
+ \ed(\an{\ti}\pss{\ai{\ti}} | \pr, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal)      .
 \end{IEEEeqnarray}
 %
 This is a collapsed Gibbs move. We need to manipulate the extended target distribution as follows. Starting with \eqref{eq:extended_dist_v1}, first marginalise the future variables by alternately integrating out the final state and then summing over the final ancestor indexes. Then expand the posterior term using Bayes rule and use \eqref{eq:pmcmc_id} repeatedly again,
 %
 \begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \ed(\param, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti:\timax}\pss{\ai{\ti:\timax}}, \aifinal) } \nonumber \\
- \qquad \qquad & = & \frac{\den(\param|\ob{1:\timax})}{\nump^{\timax}} \den(\ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax},\param) \nonumber \\
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti:\timax}\pss{\ai{\ti:\timax}}, \aifinal) } \nonumber \\
+ \qquad \qquad & = & \frac{\den(\pr|\ob{1:\timax})}{\nump^{\timax}} \den(\ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax},\pr) \nonumber \\
   & & \times \prod_{i\ne\ai{1}} \pd(\ls{1}\pss{i}) \prod_{k=1}^{\ti-1} \left[ \prod_{i\ne\ai{k}} \frac{ \pw{k-1}\pss{\an{k}\pss{i}} }{ \sum_j \pw{k-1}\pss{j} } \pd(\ls{k}\pss{i}|\ls{k-1}\pss{\an{k}\pss{i}}) \right] \nonumber \\
- & = & \frac{\den(\param|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti:\timax}|\ls{\ti:\timax}\pss{\ai{\ti:\timax}},\param) }{ \den(\ob{1:\timax}|\param) } \nonumber \\
+ & = & \frac{\den(\pr|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti:\timax}|\ls{\ti:\timax}\pss{\ai{\ti:\timax}},\pr) }{ \den(\ob{1:\timax}|\pr) } \nonumber \\
  & & \times \prod_{i} \pd(\ls{1}\pss{i}) \prod_{k=1}^{\ti-1} \left[ \prod_{i} \frac{ \pw{k-1}\pss{\an{k}\pss{i}} }{ \sum_j \pw{k-1}\pss{j} } \pd(\ls{k}\pss{i}|\ls{k-1}\pss{\an{k}\pss{i}}) \right] \nonumber \\
  & & \times \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \times \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \nonumber      .
 \end{IEEEeqnarray}
@@ -114,8 +274,8 @@ This is a collapsed Gibbs move. We need to manipulate the extended target distri
 Then marginalise $\an{\ti}\pss{\ai{\ti}}$,
 %
 \begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \ed(\param, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) } \nonumber \\
- \qquad \qquad & = & \frac{\den(\param|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti:\timax}|\ls{\ti:\timax}\pss{\ai{\ti:\timax}},\param) }{ \den(\ob{1:\timax}|\param) } \nonumber \\
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) } \nonumber \\
+ \qquad \qquad & = & \frac{\den(\pr|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti:\timax}|\ls{\ti:\timax}\pss{\ai{\ti:\timax}},\pr) }{ \den(\ob{1:\timax}|\pr) } \nonumber \\
  & & \times \prod_{i} \pd(\ls{1}\pss{i}) \prod_{k=1}^{\ti-1} \left[ \prod_{i} \frac{ \pw{k-1}\pss{\an{k}\pss{i}} }{ \sum_j \pw{k-1}\pss{j} } \pd(\ls{k}\pss{i}|\ls{k-1}\pss{\an{k}\pss{i}}) \right] \nonumber \\
  & & \times \sum_j \pw{\ti}\pss{j} \times \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{j}) \nonumber      ,
 \end{IEEEeqnarray}
@@ -123,7 +283,7 @@ Then marginalise $\an{\ti}\pss{\ai{\ti}}$,
 and obtain the conditional,
 %
 \begin{IEEEeqnarray}{rCl}
- \ed(\an{\ti}\pss{\ai{\ti}} | \param, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) & = & \frac{ \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) }{ \sum_j \pw{\ti}\pss{j} \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{j}) }     .
+ \ed(\an{\ti}\pss{\ai{\ti}} | \pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) & = & \frac{ \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) }{ \sum_j \pw{\ti}\pss{j} \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{j}) }     .
 \end{IEEEeqnarray}
 
 
@@ -133,16 +293,16 @@ and obtain the conditional,
 The change we're going to make is to replace the collapsed Gibbs steps constituting backward simulation with a new set, sampling recursively from,
 %
 \begin{IEEEeqnarray}{rCl}
- \ed(\ls{\ti}\pss{\ai{\ti}}, \an{\ti}\pss{\ai{\ti}} | \param, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal)      .
+ \ed(\ls{\ti}\pss{\ai{\ti}}, \an{\ti}\pss{\ai{\ti}} | \pr, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal)      .
 \end{IEEEeqnarray}
 %
 The manipulations of the extended target distribution are similar to before,
 %
 \begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \ed(\param, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti:\timax}\pss{\ai{\ti:\timax}}, \aifinal) } \nonumber \\
- \qquad \qquad & = & \frac{\den(\param|\ob{1:\timax})}{\nump^{\timax}} \den(\ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax},\param) \nonumber \\
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\pr, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti:\timax}\pss{\ai{\ti:\timax}}, \aifinal) } \nonumber \\
+ \qquad \qquad & = & \frac{\den(\pr|\ob{1:\timax})}{\nump^{\timax}} \den(\ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax},\pr) \nonumber \\
   & & \times \prod_{i\ne\ai{1}} \pd(\ls{1}\pss{i}) \prod_{k=1}^{\ti-1} \left[ \prod_{i\ne\ai{k}} \frac{ \pw{k-1}\pss{\an{k}\pss{i}} }{ \sum_j \pw{k-1}\pss{j} } \pd(\ls{k}\pss{i}|\ls{k-1}\pss{\an{k}\pss{i}}) \right] \nonumber \\
- & = & \frac{\den(\param|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti+1:\timax}|\ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}},\param) }{ \den(\ob{1:\timax}|\param) } \nonumber \\
+ & = & \frac{\den(\pr|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti+1:\timax}|\ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}},\pr) }{ \den(\ob{1:\timax}|\pr) } \nonumber \\
  & & \times \prod_{i} \pd(\ls{1}\pss{i}) \prod_{k=1}^{\ti-1} \left[ \prod_{i} \frac{ \pw{k-1}\pss{\an{k}\pss{i}} }{ \sum_j \pw{k-1}\pss{j} } \pd(\ls{k}\pss{i}|\ls{k-1}\pss{\an{k}\pss{i}}) \right] \nonumber \\
  & & \times \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \times \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\an{\ti+1}\pss{\ai{\ti+1}}}) \nonumber      .
 \end{IEEEeqnarray}
@@ -150,8 +310,8 @@ The manipulations of the extended target distribution are similar to before,
 Now marginalise both $\ls{\ti}\pss{\ai{\ti}}$ and $\an{\ti}\pss{\ai{\ti}}$,
 %
 \begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \ed(\param, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) } \nonumber \\
- \qquad \qquad & = & \frac{\den(\param|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti+1:\timax}|\ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}},\param) }{ \den(\ob{1:\timax}|\param) } \nonumber \\
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\pr, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) } \nonumber \\
+ \qquad \qquad & = & \frac{\den(\pr|\ob{1:\timax})}{\nump^{\timax}} \frac{ \den(\ob{\ti+1:\timax}|\ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}},\pr) }{ \den(\ob{1:\timax}|\pr) } \nonumber \\
  & & \times \prod_{i} \pd(\ls{1}\pss{i}) \prod_{k=1}^{\ti-1} \left[ \prod_{i} \frac{ \pw{k-1}\pss{\an{k}\pss{i}} }{ \sum_j \pw{k-1}\pss{j} } \pd(\ls{k}\pss{i}|\ls{k-1}\pss{\an{k}\pss{i}}) \right] \nonumber \\
  & & \times \sum_j \pw{\ti}\pss{j} \int \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{j}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) d\ls{\ti}\pss{\ai{\ti}} \nonumber      ,
 \end{IEEEeqnarray}
@@ -159,7 +319,7 @@ Now marginalise both $\ls{\ti}\pss{\ai{\ti}}$ and $\an{\ti}\pss{\ai{\ti}}$,
 and obtain the conditional,
 %
 \begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \ed(\ls{\ti}\pss{\ai{\ti}}, \an{\ti}\pss{\ai{\ti}} | \param, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) } \nonumber \\
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\ls{\ti}\pss{\ai{\ti}}, \an{\ti}\pss{\ai{\ti}} | \pr, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) } \nonumber \\
  \qquad \qquad & = & \frac{ \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) }{ \sum_j \pw{\ti}\pss{j} \int \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{j}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) d\ls{\ti}\pss{\ai{\ti}} } \nonumber      .
 \end{IEEEeqnarray}
 
@@ -261,5 +421,9 @@ The results shown are for one set of data with a single random seed. Repeating t
 \end{itemize}
 
 
+
+
+\bibliographystyle{plain}
+\bibliography{/users/pete/Dropbox/PhD/OTbib}
 
 \end{document} 
