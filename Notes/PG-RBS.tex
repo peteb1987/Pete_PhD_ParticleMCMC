@@ -22,6 +22,28 @@
 \usepackage[scaled]{helvet}\renewcommand*\familydefault{\sfdefault}\usepackage[T1]{fontenc}
 \usepackage{setspace}\onehalfspacing
 
+%%% Theorem environments %%%
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{model}[theorem]{Model}
+
+\newenvironment{proof}[1][Proof]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+      \ifdim\lastskip<1.5em \hskip-\lastskip
+      \hskip1.5em plus0em minus0.5em \fi \nobreak
+      \vrule height0.75em width0.5em depth0.25em\fi}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 \newenvironment{meta}[0]{\color{red} \em}{}
 
@@ -60,20 +82,27 @@
 \newcommand{\aifinal}{K}
 \newcommand{\lsset}[1]{\mathbf{x}_{#1}}
 \newcommand{\anset}[1]{\mathbf{a}_{#1}}
+
 \newcommand{\den}{p}
 \newcommand{\ed}{\pi}
 \newcommand{\td}[1]{f_{\theta,#1}}
 \newcommand{\od}[1]{g_{\theta,#1}}
-\newcommand{\pd}{q}
-\newcommand{\spd}{\rho}
+\newcommand{\pd}[1]{\phi_{#1}}
+\newcommand{\spd}[1]{\psi_{#1}}
+
 \newcommand{\pw}[1]{w_{#1}}
+\newcommand{\ppw}[1]{v_{#1}}
+\newcommand{\spw}[1]{u_{#1}}
+
+\newcommand{\mhap}{\alpha}
 \newcommand{\pss}[1]{^{(#1)}}
 \newcommand{\nump}{N}
-\newcommand{\utf}{\phi}
+\newcommand{\utf}[1]{\rho_{#1}}
 \newcommand{\cised}{\eta}
 \newcommand{\cisi}{c}
 \newcommand{\notcisi}{-c}
-\newcommand{\spw}[1]{\tilde{w}_{#1}}
+
+\newcommand{\wl}{L}
 
 
 \begin{document}
@@ -86,16 +115,30 @@
 
 
 \section{Introduction}
-Particle Markov chain Monte Carlo (PMCMC) algorithms \cite{Andrieu2010,Olsson2011,Chopin2013,Lindsten2014} provide an elegant and effective solution for Bayesian parameter learning with Markovian state space models. By constructing an extended target distribution over the output of a particle filter, it is possible to formulate a Markov chain, the samples from which have the desired target marginal distribution.
+Particle Markov chain Monte Carlo (PMCMC) algorithms \cite{Andrieu2010,Olsson2011,Chopin2013,Lindsten2014} provide an elegant and effective solution for Bayesian parameter learning with Markovian state space models. They are based on the formulation of an extended target distribution over the system of random variables comprising a particle filter, which has the desired posterior distribution as a marginal. A Markov chain for which this extended distribution is invariant may be constructed using component sequential Monte Carlo (SMC) procedures. The particle system is composed of a set of states for each time step and corresponding ancestor index variables, which define a set of state trajectories.
 
-In this paper we consider in particular the \emph{particle Gibbs} (PG) algorithm, introduced in \cite{Andrieu2010}. This alternately samples values for the latent states and unknown parameters from appropriate conditional distributions, the states being drawn using an inner sequential Monte Carlo (SMC) procedure. Like any Gibbs sampler \cite{Geman1984}, this has the advantage over Metropolis-Hastings \cite{Metropolis1953,Hastings1970} of not requiring an accept/reject stage. However, the resulting chains are still liable to mix slowly if the SMC process degenerates.
+In this paper we consider in particular the \emph{particle Gibbs} (PG) algorithm, introduced by \cite{Andrieu2010}. This samples in turn new values for the unknown parameters, the particle system, and an index variable indicating one reference trajectory. Sampling the particle system is equivalent to running a modified particle filter. Like any Gibbs sampler, this has the advantage over Metropolis-Hastings of not requiring an accept/reject stage. However, the resulting chains are still liable to mix slowly if the particle filter suffers from path-space degeneracy.
 
-It is possible to reduce degeneracy, and thus improve the mixing of the PG Markov chain, by incorporating additional sampling steps, either during the forward sampling \cite{Lindsten2014} (known as particle Gibbs with ancestor sampling --- PG-AS), or in an additional backward sweep \cite{Whiteley2010b,Lindsten2012} (known as particle Gibbs with backward simulation --- PG-BS). In PG, the latent state values are represented by the output of a particle filter, together with a sequence of ancestor index variables indicating a reference trajectory. The improvement stems from allowing these ancestor index variables to be sampled separately at each time step, rather than simultaneously for the entire trajectory.
+It is possible to reduce degeneracy, and thus improve the mixing of the PG Markov chain, by incorporating additional sampling steps, either during the filtering stage, known as particle Gibbs with ancestor sampling (PG-AS) \cite{Lindsten2014}, or in an additional backward sweep, known as particle Gibbs with backward simulation (PG-BS) \cite{Whiteley2010b,Lindsten2012}. The improvement stems from allowing the ancestor index variables to be sampled separately at each time step, rather than simultaneously for the entire trajectory.
 
-For some models, mixing may be slow even when using PG-BS or PG-AS. Specifically, when the model transition density is tightly concentrated, the probability of sampling any change in the particle ancestry is low. Intuitively, the problem is that the only state history consistent with a particular future is that which was originally used to generate that future. We can mitigate this effect by using a \emph{refreshed} backward simulation procedure, along the lines of \cite{Bunch2013}. When sampling an ancestor index for the reference trajectory, we simultaneously sample a new value for the associated state. This allows us some leeway to steer the potential state histories towards the fixed future, consequently increasing the probability of changing the ancestry and thus improving the mixing of the Markov chain.
+For some models, mixing may be slow even when using PG-BS or PG-AS. Specifically, when the model transition density is tightly concentrated, the probability of sampling any change in the particle ancestry is low. Intuitively, the problem is that the only state history consistent with a particular future is that which was originally used to generate that future. We can mitigate this effect by using a modified backward simulation procedure, along the lines of \cite{Bunch2013}. When sampling an ancestor index for the reference trajectory, we simultaneously sample a new value for the associated state. This allows us some leeway to steer the potential state histories towards the fixed future, consequently increasing the probability of changing the ancestry and thus improving the mixing of the Markov chain.
 
 The paper proceeds as follows. First we review the basic particle filter and particle Gibbs algorithms. We then discuss the use of backward simulation in particle Gibbs and introduce the use of refreshed backward simulation. An appropriate Markov kernel is introduced to target the necessary conditional distribution. The efficacy of the new method is illustrated with a simulation example.
 
+
+
+% \subsection{Gibbs Sampling}
+% 
+% We begin by mentioning some basic properties of Gibbs sampling to which we later refer. For proofs and further explanation see \citep{Liu1994,Chib1995}.
+% 
+% \begin{theorem}
+%  Suppose we have variables $x\pss{m},y\pss{m},z\pss{m} \sim \ed(x,y,z)$
+% \end{theorem}
+% 
+% For two variables $\ls{}\in\lsspace$ and $\pr\in\prspace$, the invariant distribution of a 
+% 
+% 
+% a Gibbs sampler is a Markov chain Monte Carlo (MCMC) procedure for sampling from a joint distribution $\ed(\pr,\ls{})$ by alternately sampling from the two conditional distributions $\ed(\pr|\ls{})$ and $\ed(\ls{}|\pr)$. More generally, if these distributions cannot be sampled directly, 
 
 
 \subsection{State Space Modelling}
@@ -122,102 +165,313 @@ where,
 %
 and in which sequences of random variables are denoted $z_{r:s} = \{z_{r}, \dots, z_{s}\}$.
 
-
-
-\section{Particle Methods}
-
 \subsection{Particle Filtering}
 The particle filter is a sequential Monte Carlo algorithm which recursively approximates the sequence of filtering densities $\den(\ls{1:\ti}|\pr,\ob{1:\ti}) : \ti = 1,\dots,\timax$. This is achieved by propagating forwards a collection of $\nump$ particles $\{\ls{1:\ti}\pss{i}: i = 1,\dots,\nump\}$, each of which is a realisation of the state sequence, along with a set of associated weights $\{\pw{\ti}\pss{i}: i = 1,\dots,\nump\}$, such that for an arbitrary test function $\testfunc$,
 %
 \begin{IEEEeqnarray}{rClCl}
  \frac{\sum_{i=1}^{\nump} \pw{\ti}\pss{i} \testfunc(\ls{1:\ti}\pss{i})}{\sum_{i=1}^{\nump} \pw{\ti}\pss{i}} & \toas & \int \testfunc(\ls{1:\ti}) \den(\ls{1:\ti}|\pr,\ob{1:\ti}) d\ls{1:\ti} \nonumber & \quad \text{as} \quad & \nump \to \infty    .
 \end{IEEEeqnarray}
+%
+This procedure is well established, and we do not include an algorithmic description here. See e.g. \cite{Cappe2007,Doucet2009,Andrieu2010,Lindsten2010} for details of particle filters and how they relate to PMCMC schemes.
 
-Each step begins by sampling a vector of ancestor indexes $\anset{\ti} = \{\an{\ti}\pss{i} : i = 1,\dots,\nump\}$ where $\an{\ti}\pss{i} \in \{1,\dots,\nump\}$. Here we constrain this selecting stage to use simple multinomial sampling, such that each ancestor index is sampled independently with $\prob(\an{\ti}\pss{i}=j)=\frac{\pw{\ti}\pss{j}}{\sum_k \pw{\ti}\pss{k}}$. Generalisations to use auxiliary sampling and variance reduction methods --- such as residual, stratified and systematic sampling --- can be applied by following \citep{Chopin2013,Lindsten2012}... {\meta check that they can}
+Particle filters exhibit an significant deficiency known as path-space degeneracy. Only a subset of the particles at each time instant are used in the construction of those at the next time instant. This means that the number of unique states appearing in the trajectories decreases as we look back in time. If $\timax$ is sufficiently large, then there will be a time step before which every particle has the same ancestry.
 
-The second stage is to sample a new value of the state conditional on the ancestry from an importance density $\id{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})$. Note that $\id{\ti}$ may depend on the observation sequence $\ob{1:\timax}$, but this is suppressed for clarity of presentation. Finally, particle weights are calculated to compensate for the discrepancy between the true distribution of the particles and the targeted posterior. The procedure is set out in algorithm~\ref{alg:particle-filter}.
 
-\begin{algorithm}
-\begin{algorithmic}[1]
- \STATE Sample $\ls{1}\pss{i} \sim \id{1}(\cdot)$.
- \STATE Weight $\pw{1}\pss{i} = \frac{\td{1}(\ls{1}\pss{i})\od{1}(\ob{1}|\ls{1}\pss{i})}{\id{1}(\ls{1}\pss{i})}$.
- \FOR{$\ti=1,\dots,\timax$}
-  \STATE Sample $\an{\ti}\pss{i} \sim \frac{\pw{\ti}\pss{\an{\ti}}}{\sum_j \pw{\ti}\pss{j}}$.
-  \STATE Sample $\ls{\ti}\pss{i} \sim \id{\ti}(\cdot|\ls{\ti-1})$.
-  \STATE Weight $\pw{\ti}\pss{i} = \frac{\td{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})\od{\ti}(\ob{\ti}|\ls{\ti}\pss{i})}{\id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})}$.
- \ENDFOR
-\end{algorithmic}
-\caption{Particle Filter}
-\label{alg:particle-filter}
-\end{algorithm}
 
-State trajectories are constructed by tracing the lineage of the particles described by the ancestor indexes. Recursively we have,
+\section{Particle Gibbs}
+An ideal Gibbs sampler for targeting \eqref{eq:full-posterior} might alternately sample from the state and parameter conditional distributions, $\den(\ls{1:\timax}|\pr,\ob{1:\timax})$ and $\den(\pr|\ls{1:\timax},\ob{1:\timax})$. The parameter conditional may be straightforward to sample from, particularly if conjugate priors are chosen. More generally, it will usually be possible to target the parameter conditional efficiently with Metropolis-Hastings.
+
+Sampling from the state conditional is the more challenging step. This can rarely be achieved directly. A particle filter could be used to return an approximately distributed sample, but the resulting algorithm will not have the correct target distribution because of this approximation.
+
+The approach used by particle Gibbs is to construct an extended distribution over all the random variables comprising a particle filter. This may be targeted without approximation, and admits the desired posterior as a marginal.
+
+
+
+\subsection{The Extended Target Distribution}
+The PMCMC extended target distribution is constructed over the space of an entire particle system. This comprises states and ancestor indexes,
+%
+\begin{IEEEeqnarray}{rClCl}
+ \lsset{\ti} = \{\ls{\ti}\pss{i} : i = 1,\dots,\nump\} & \quad & \ti = 1,\dots,\timax \nonumber \\
+ \anset{\ti} = \{\an{\ti}\pss{i} : i = 1,\dots,\nump\} & \quad & \ti = 2,\dots,\timax \nonumber      .
+\end{IEEEeqnarray}
+%
+The ancestor index $\an{\ti}\pss{i} \in \{1,\dots,\nump\}$ indicates the $(\ti-1)$ parent state from which $\ls{\ti}$ follows. Hence, state trajectories are constructed by tracing the lineage of the particles described by the ancestor indexes. Recursively we have,
 %
 \begin{IEEEeqnarray}{rCl}
  \ls{1:\ti}\pss{i} & = & \ls{1:\ti-1}\pss{\an{\ti}\pss{i}} \cup \ls{\ti}\pss{i} \nonumber     .
 \end{IEEEeqnarray}
-
-
-
-\subsection{Particle Gibbs}
-
-First we introduce the following additional notation. Let $\aifinal$ be the index of a selected reference trajectory from the particle filter output, and let $\ai{\ti}=\an{\ti+1}\pss{\at{\ti+1}} : \ti = 1,\dots,\timax-1$ be used to indicate ancestry of this particle.
-
-Particle MCMC algorithms target an extended distribution of which the desired posterior \eqref{eq:full-posterior} is a marginal,
+%
+Furthermore, let $\aifinal\in\{1,\dots,\nump\}$ be the index of a particular reference trajectory, and indicate the ancestry of this particle by,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ai{\ti} &=& \begin{cases}
+               \aifinal & \ti = \timax \\
+               \an{\ti+1}\pss{\ai{\ti+1}} & \ti = 1,\dots,\timax-1     .
+              \end{cases} \nonumber
+\end{IEEEeqnarray}
+%
+For this reference trajectory write,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{1:\timax}\pss{\ai{1:\timax}} = \{ \ls{\ti}\pss{\ai{\ti}} : \ti = 1,\dots,\timax \} \nonumber     ,
+\end{IEEEeqnarray}
+%
+and for the remaining states which do not appear in the reference trajectory,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{1:\timax}\pss{\notai{1:\timax}} = \lsset{1:\timax} \setminus \ls{1:\timax}\pss{\ai{1:\timax}} \nonumber     .
+\end{IEEEeqnarray}
+%
+The extended target distribution may now be written as,
 %
 \begin{IEEEeqnarray}{rCl}
  \ed(\pr, \lsset{1:\timax}, \anset{2:\timax}, \aifinal) & = & \frac{1}{\nump^\timax} \den(\pr, \ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax}) \nonumber \\
-  & & \qquad  \times \prod_{i\ne\ai{1}} \pd(\ls{1}\pss{i}) \prod_{\ti=1}^{\timax} \left[ \prod_{i\ne\ai{\ti}} \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \pd(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \right] \label{eq:extended_dist_v1}     .
+  & & \qquad  \times \prod_{i\ne\ai{1}} \pd(\ls{1}\pss{i}) \prod_{\ti=1}^{\timax} \left[ \prod_{i\ne\ai{\ti}} \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \right] \label{eq:extended_dist_v1}     ,
+\end{IEEEeqnarray}
+%
+in which the unnormalised importance weights are,
+%
+\begin{IEEEeqnarray}{rCl}
+ \pw{\ti}\pss{i} = \frac{\td{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})\od{\ti}(\ob{\ti}|\ls{\ti}\pss{i})}{\id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})}
+\end{IEEEeqnarray}
+%
+and $\{\id{\ti}\}$ are importance densities. These may depend on the observation sequence $\ob{1:\timax}$, and the same convention regarding $\id{1}$ is used as for the $\td{1}$.
+
+\subsection{The Algorithm}
+
+Each step of the particle Gibbs algorithm proceeds through the following stages.
+\begin{itemize}
+ \item Sample a new value of the parameters from $\ed(\pr | \ls{1:\timax}\pss{\ai{1:\timax}}, \an{2:\timax}\pss{\ai{1:\timax}}, \aifinal)$.
+ \item Sample new values for the states and ancestors \emph{apart} from the reference trajectory $\ed(\lsset{1:\timax}\pss{\notai{1:\timax}}, \anset{2:\timax}\pss{\notai{2:\timax}} | \pr, \ls{1:\timax}\pss{\ai{1:\timax}}, \an{2:\timax}\pss{\ai{1:\timax}}, \aifinal)$.
+ \item Sample a new reference trajectory index $\ed(\aifinal|\pr, \lsset{1:\timax}, \anset{2:\timax})$.
+\end{itemize}
+%
+Notice that in the first stage we do not draw from the full conditional as might be expected, but instead condition only on the reference trajectory. This is an instance of \emph{collapsed} Gibbs sampling \cite{Liu1994}. It is easily justified by observing that the first two steps may be combined, resulting in a two-stage procedure which alternately samples $\{\pr,\lsset{1:\timax}\pss{\notai{1:\timax}}, \anset{2:\timax}\pss{\notai{2:\timax}}\}$ and $\aifinal$ from their respective full conditionals.
+
+If any of these sampling operations cannot be achieved directly, then it is sufficient to use a Markov kernel targeting the appropriate conditional. {\meta Cite stuff.}
+
+\subsection{The Conditional Distributions}
+
+\subsubsection{Parameters}
+
+We assume that $\ed(\pr | \ls{1:\timax}\pss{\ai{1:\timax}}, \an{2:\timax}\pss{\ai{1:\timax}}, \aifinal)$ may be either sampled directly through the use of an appropriate conjugate prior or targeted with an appropriate Metropolis-Hastings kernel.
+
+\subsubsection{Particle System}
+
+Sampling the particle system conditional on the reference trajectory is achieved sequentially using the factorisation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\lsset{1:\timax}\pss{\notai{1:\timax}}, \anset{2:\timax}\pss{\notai{2:\timax}} | \pr, \ls{1:\timax}\pss{\ai{1:\timax}}, \an{2:\timax}\pss{\ai{2:\timax}}, \aifinal) } \nonumber \\
+ \qquad \qquad &=& \ed(\lsset{1}\pss{\notai{1}} | \pr, \ls{1:\timax}\pss{\ai{1:\timax}}, \an{2:\timax}\pss{\ai{2:\timax}}, \aifinal) \nonumber \\
+ & & \times \prod_{\ti=2}^{\timax} \ed(\lsset{\ti}\pss{\notai{\ti}}, \anset{\ti}\pss{\notai{\ti}} | \pr, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{1:\timax}\pss{\ai{1:\timax}}, \an{2:\timax}\pss{\ai{2:\timax}}, \aifinal)     ,
+\end{IEEEeqnarray}
+%
+where the conditional factors are given by,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ed(\lsset{1}\pss{\notai{1}} | \pr, \ls{1:\timax}\pss{\ai{1:\timax}}, \an{2:\timax}\pss{\ai{2:\timax}}, \aifinal) &=& \prod_{i\ne\ai{1}} \id{1}(\ls{1}\pss{i}) \nonumber \\
+ \ed(\lsset{\ti}\pss{\notai{\ti}}, \anset{\ti}\pss{\notai{\ti}} | \pr, \lsset{1:\ti-1}, \anset{1:\ti-1}, \ls{1:\timax}\pss{\ai{1:\timax}}, \an{2:\timax}\pss{\ai{2:\timax}}, \aifinal) &=& \prod_{i\ne\ai{\ti}} \frac{\pw{\ti-1}\pss{\an{\ti}\pss{i}}}{\sum_j \pw{\ti-1}\pss{j}} \id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \nonumber      .
+\end{IEEEeqnarray}
+{\meta see Appendix.}
+%
+This procedure is known as a \emph{conditional particle filter}, since it consists of the same operations as a standard particle filter, but for one state at each time step which is set deterministically to be equal to that of the reference trajectory.
+
+
+\subsubsection{Reference Trajectory}
+
+The conditional distribution over the reference trajectory index is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ed(\aifinal|\pr, \lsset{1:\timax}, \anset{2:\timax}) &=& \frac{\pw{\timax}\pss{\aifinal}}{\sum_j \pw{\timax}\pss{j}} \nonumber      .
+\end{IEEEeqnarray}
+%
+Thus, an index is sampled by normalising the final particle filter weights and then drawing once from the resulting categorical distribution.
+
+
+\section{Particle Gibbs with Backward Simulation}
+Mixing of the particle Gibbs algorithm can be very slow. This can be viewed as a failing of the conditional particle filter. The reference trajectory is guaranteed to appear in the final particle system. If the system suffers from path-space degeneracy then the old and new reference trajectories are likely to have a near-identical ancestry, with differences only appearing towards the end of the sequence. However long the Markov chain is run for, it is unlikely that the states or ancestor indexes will be changed for the early time steps.
+
+
+\subsection{Standard Backward Simulation}
+This problem may be mitigated by including an additional sampling stage in each step of the PG algorithm. Sweeping backwards, for each time step a new ancestor index is drawn from,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ed(\an{\ti}\pss{\ai{\ti}} | \pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}} \aifinal) & = & \frac{ \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \td{\ti}(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) }{ \sum_j \pw{\ti}\pss{j} \td{\ti}(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{j}) } \label{eq:bs-distn}     .
+\end{IEEEeqnarray}
+{\meta see appendix}
+
+Note that each of these operations is a collapsed Gibbs move, since not all the remaining variables are conditioned upon. In particular, we have excluded the future states and ancestors other than those in the reference trajectory. The justification for this is that we are sampling conceptually from,
+%
+\begin{IEEEeqnarray}{c}
+ \ed(\an{\ti}\pss{\ai{\ti}}, \lsset{\ti:\timax}\pss{\notai{\ti:\timax}}, \anset{\ti:\timax}\pss{\notai{\ti:\timax}} | \pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}} \aifinal) \nonumber      .
+\end{IEEEeqnarray}
+%
+which is a valid Gibbs move. However, since no future operation will depend on $\lsset{\ti:\timax}\pss{\notai{\ti:\timax}}$ or $\anset{\ti:\timax}\pss{\notai{\ti:\timax}}$, we need not actually bother generating them. See \cite{Dyk2008} for analysis and explanation of collapsed Gibbs sampling.
+
+Algorithmically, this additional stage corresponds to backward simulation \citep{Godsill2004}. The sampler sweeps backwards through time, sampling a new value for each ancestor index $\an{\ti}\pss{{\ai{\ti}}}$ from a set of smoothing weights proportional to $\pw{\ti}\pss{i}\td{\ti}(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{i})$.
+
+Backward simulation within PG was suggested by \cite{Whiteley2010b}, and explored by \cite{Lindsten2012}, although in the latter case using a modified extended target distribution.
+
+
+\subsection{Better Backward Simulation}
+Backward simulation allows the sampler to change the ancestry of the reference trajectory even when the conditional particle filter suffers from degeneracy. However, if the model transition density is tightly concentrated then the probability of changing the ancestor indexes is very low. This is illustrated in figure~\ref{}. {\meta Add this figure. What exactly do I mean by ``concentrated''?} If this situation arises, then the ability of backward simulation to mitigate the problems of particle degeneracy and accelerate the mixing of PG can be limited.
+
+We can increase the chances of altering the ancestry, and thus further improve mixing of the Markov chain, if the backward simulation algorithm is modified to simultaneously sample a new value for each state along with the corresponding ancestor index. At each time instant we now sample from,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\an{\ti}\pss{\ai{\ti}}, \ls{\ti}\pss{\ai{\ti}} | \pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) } \nonumber \\
+ \qquad &=& \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}} \td{\ti}(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od{\ti}(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td{\ti+1}(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) }{ \sum_j \pw{\ti-1}\pss{j} \int \td{\ti}(\ls{}|\ls{\ti-1}\pss{j}) \od{\ti}(\ob{\ti}|\ls{}) \td{\ti+1}(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{}) d\ls{} } \label{eq:rbs-distn}      .
 \end{IEEEeqnarray}
 
+As before, this is a collapsed Gibbs move. The distribution which we are sampling conceptually is,
+%
+\begin{IEEEeqnarray}{c}
+ \ed(\an{\ti}\pss{\ai{\ti}}, \ls{\ti}\pss{\ai{\ti}}, \anset{\ti:\timax}\pss{\notai{\ti:\timax}}, \lsset{\ti:\timax}\pss{\notai{\ti:\timax}} | \pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti+1:\timax}\pss{\ai{\ti:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}} \aifinal) \nonumber      .
+\end{IEEEeqnarray}
+%
+However, the non-reference future values need not actually be generated.
+
+In standard backward simulation, the conditional for each ancestor index is a categorical ditribution \eqref{eq:bs-distn}, which can be sampled directly by evaluating the weight associated with each possible value, or by rejection sampling \cite{Doucet2009,Taghavi2013}. It is also possible to use a Metropolis-Hastings kernel targeting this distribution \cite{Bunch2013,Bunch2014}.
+
+In contrast, the joint conditional for state-ancestor pairs is a mixed continuous-discrete distribution \eqref{eq:rbs-distn}. Since it will not in general be possible to sample from this distribution directly, we consider two possible Markov kernels which can be used instead. To clarify the following explanations, we write the one-step target distribution in a simplified form, omitting superfluous indexes and conditioning,
+%
+\begin{IEEEeqnarray}{rCl}
+\ed(\an{\ti},\ls{\ti} | \lsset{\ti-1}) & = & \frac{ \pw{\ti-1}\pss{\an{\ti}} \utf{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) }{ \sum_j \pw{\ti-1}\pss{j} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{j}) d\ls{} } \label{eq:simplified-rbs-distn}      .
+\end{IEEEeqnarray}
+
+\subsubsection{Metropolis-Hastings}
+We can of course target \eqref{eq:simplified-rbs-distn} using Metropolis-Hastings. From current values $\an{\ti}^*$ and $\ls{\ti}^*$, we can propose new values $\an{\ti}'$ and $\ls{\ti}'$ by drawing from,
+%
+\begin{IEEEeqnarray}{rCl}
+ \frac{ \ppw{\ti-1}\pss{\an{\ti}} }{ \sum_j \ppw{\ti-1}\pss{j} } \pd{\ti}(\ls{\ti} | \ls{\ti-1}\pss{\an{\ti}}, \ls{\ti}^*) \label{eq:rbs-mh-ppsl}       ,
+\end{IEEEeqnarray}
+%
+in which $\{\ppw{\ti}\pss{i} : i = 1,\dots,\nump\}$ are a set of proposal weights for the ancestor index and $\pd{\ti}$ is a new proposal density. The resulting acceptance probability is then,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mhap(\an{\ti}',\ls{\ti}' \to \an{\ti}^*,\ls{\ti}^*) & = & \min\left\{ 1, \frac{ \pw{\ti-1}\pss{\an{\ti}'} \utf{\ti}(\ls{\ti}'|\ls{\ti-1}\pss{\an{\ti}'}) }{ \ppw{\ti-1}\pss{\an{\ti}'} \pd{\ti}(\ls{\ti}' | \ls{\ti-1}\pss{\an{\ti}'}, \ls{\ti}^*) } \frac{ \ppw{\ti-1}\pss{\an{\ti}^*} \pd{\ti}(\ls{\ti}^* | \ls{\ti-1}\pss{\an{\ti}^*}, \ls{\ti}') }{ \pw{\ti-1}\pss{\an{\ti}^*} \utf{\ti}(\ls{\ti}^*|\ls{\ti-1}\pss{\an{\ti}^*}) } \right\}
+\end{IEEEeqnarray}
+
+Implementing such a Metropolis-Hastings scheme introduces a number of additional design parameters to the algorithm: the proposal weights, $\{\ppw{\ti-1}\pss{i}\}$, the proposal density $\pd{\ti}$, and the number of Markov chain iterations to be conducted.
+
+
+\subsubsection{Conditional Importance Sampling}
+The marginal conditional distribution for the ancestor indexes is,
+%
+\begin{IEEEeqnarray}{rCl}
+\ed(\an{\ti} | \lsset{\ti-1}) = \int \ed(\ls{}, \an{\ti} | \lsset{\ti-1}) d\ls{} & = & \frac{ \pw{\ti-1}\pss{\an{\ti}} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{\an{\ti}})d\ls{} }{ \sum_j \pw{\ti-1}\pss{j} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{j}) d\ls{} } \nonumber      .
+\end{IEEEeqnarray}
+%
+If this distribution is dominated by a small number of possible values with high probability, then a Metropolis-Hastings kernel will be inefficient. It may take a large number of steps before one of these likely values is proposed. In such circumstances it may be advantageous to use \emph{conditional importance sampling} (CIS) instead.
+
+CIS uses the same principle as the conditional particle filter, but applied to a single time step. Suppose we have the current values $\an{\ti}^*$ and $\ls{\ti}^*$, then a Markov kernel may be constructed with \eqref{eq:simplified-rbs-distn} as its invariant distribution by following algorithm~\ref{alg:cis}.
+
+\begin{algorithm}[!h]
+\begin{algorithmic}[1]
+ \REQUIRE Preceding particle states $\lsset{\ti-1}$, current values $\an{\ti}^*$ and $\ls{\ti}^*$.
+ \STATE Sample an index uniformly $\cisi^*\in\{1,\dots,\nump\}$.
+ \STATE Set $\an{\ti}\pss{i} = \an{\ti}^*$. Set $\ls{\ti}\pss{i} = \ls{\ti}^*$.
+ \FORALL{$i \in \{1,\dots,\nump\}\setminus\cisi^*$}
+  \STATE Sample $\an{\ti}\pss{i} \sim \frac{\ppw{\ti-1}\pss{\an{\ti}}}{\sum_j \ppw{\ti-1}\pss{j}}$. Sample $\ls{\ti}\pss{i} \sim \spd{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})$.
+ \ENDFOR
+ \STATE Sample $\cisi' \sim \frac{\spw{\ti}\pss{\cisi}}{\sum_j \spw{\ti}\pss{j}}$, where $\spw{\ti} = \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} \utf{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) }{ \ppw{\ti-1}\pss{\an{\ti}\pss{i}} \spd{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) }$.
+ \STATE Set $\an{\ti}' = \an{\ti}\pss{\cisi'}$.
+ \STATE Set $\ls{\ti}' = \ls{\ti}\pss{\cisi'}$.
+ \RETURN New values $\an{\ti}'$ and $\ls{\ti}'$.
+\end{algorithmic}
+\caption{Conditional importance sampling for the joint ancestor-state conditional distributions.}
+\label{alg:cis}
+\end{algorithm}
+
+To justify that this is a correct Markov kernel, we construct another extended target distribution the particles, (Note that this set of particles is separate to that of the primary Gibbs sampler.)
+%
+\begin{IEEEeqnarray}{rCl}
+ \cised(\anset{\ti}, \lsset{\ti}, \cisi) & = & \frac{1}{\nump} \ed(\ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi} | \lsset{\ti-1}) \times \prod_{i\ne\cisi} \frac{\ppw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \ppw{\ti}\pss{j}} \spd{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) 
+\end{IEEEeqnarray}
+%
+The first part of algorithm~\ref{alg:cis} corresponds to sampling from the conditional distribution, $\cised(\anset{\ti}\pss{\notcisi}, \lsset{\ti}\pss{\notcisi} | \an{\ti}\pss{\cisi}, \ls{\ti}\pss{\cisi}, \cisi)$, and the final step to sampling from $\cised(\cisi|\anset{\ti}, \lsset{\ti})$. {\meta See appendix.}
+
+Hence, if the starting values are distributed according to the desired posterior, then the final values must also be, and the procedure is a Markov kernel with the desired invariant distribution.
+
+
+\subsection{Multiple Time Steps}
+
+In extreme cases, even with refreshed backward simulation the update rate of the earliest states may be low. If this occurs, it is may be beneficial to extend the method to sample states at multiple steps, thus giving us yet more leeway to match the sampled future to the possible particle histories. At each time instant we now sample from,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\an{\ti}\pss{\ai{\ti}}, \ls{\ti:\ti+\wl-1}\pss{\ai{\ti:\ti+\wl-1}} | \pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti+\wl:\timax}\pss{\ai{\ti+\wl:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) } \nonumber \\
+% 
+% 
+ \qquad &=& \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}} \td{\ti}(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od{\ti}(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td{\ti+1}(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) }{ \sum_j \pw{\ti-1}\pss{j} \int \td{\ti}(\ls{}|\ls{\ti-1}\pss{j}) \od{\ti}(\ob{\ti}|\ls{}) \td{\ti+1}(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{}) d\ls{} } \label{eq:rbs-distn}      .
+\end{IEEEeqnarray}
+
+As before, this is a collapsed Gibbs move. The distribution which we are sampling conceptually is,
+%
+\begin{IEEEeqnarray}{c}
+ \ed(\an{\ti}\pss{\ai{\ti}}, \ls{\ti:\ti+\wl-1}\pss{\ai{\ti:\ti+\wl-1}}, \anset{\ti:\timax}\pss{\notai{\ti:\timax}}, \lsset{\ti:\timax}\pss{\notai{\ti:\timax}} | \pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti+\wl:\timax}\pss{\ai{\ti+\wl:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}} \aifinal) \nonumber      .
+\end{IEEEeqnarray}
+%
+However, the non-reference future values need not actually be generated.
 
 
 
 
-
-
-
-
-
-
-\subsection{Backwards Simulation}
-The final step of the particle filter returns a collection of weighted particles approximating the posterior state density $\den(\ls{1:\timax}|\ob{1:\timax})$. However, this is liable to suffer from \emph{path space degeneracy}. Because only a subset of the possible ancestor indexes are selected at each step, the number of unique states appearing in the trajectories decreases as we look back in time. If $\timax$ is sufficiently large, then there will be a time step before which every particle has the same ancestry.
-
-Backward simulation allows a new state trajectory to be sampled, which will be less correlated with the existing set of particles. 
-
-In standard PG, a new reference trajectory is sampled straight from this collection with probability proportional to the final filter weights. Since the old reference trajectory also appears in the 
-
-
-
-
-{\meta 
-Basic PF\\
-Basic BS\\
-Refreshed BS}
-
-\section{Particle Gibbs}
-Principles
-Extended target distribution
-Particle Gibbs
-PG-BS
-
-\section{Particle Gibbs with Refreshed Backward Simulation}
-Changes relative to PG-BS
-Intuition
-Manipulations of the extended target distribution
-Appropriate Markov Kernels
- -Metropolis-Hastings
- -Conditional Importance Sampling
-Multiple steps
+\section{Intractable Transition Models?}
 
 \section{Simulations}
-Auto-correlation Comparisons
-Effect of number of steps
+
+\subsection{The Model}
+Particle Gibbs (PG), Particle Gibbs with Backward Simulation (PG-BS) and Particle Gibbs with Refreshed Backward Simulation (PG-RBS) were tested on a tracking model. The transition model is 3D near constant velocity motion, and the observation model bearing, elevation and range measurements. {\meta details and parameter settings.} The parameter to be learnt is the scale factor on the transition covariance matrix, which characterises the target manoeuvrability. The data set has 100 time steps.
+
+\subsection{Algorithm Settings}
+Each algorithm was run for 5000 iterations, with a burn in of 1000. PG and PG-BS were run twice, with 100 and 200 particles each. PG-RBS was run with 100 particles. PG-RBS with 100 particles takes roughly the same time as PG-BS with 200 particles.
+
+\subsection{Results}
+PG does not mix at all. Parameter estimates do not approach the true value. See figure~\ref{fig:chain_init_fail}. PG-BS and PG-RBS do converge. Figure~\ref{fig:chain_init} shows the first 200 iterations, showing faster movement of the PG-RBS algorithm towards the true value. Figure~\ref{fig:sample_hist} shows the posterior histograms and figure~\ref{fig:acf} the autocorrelation functions. The latter indicates faster mixing from PG-RBS with both equal-time and equal-particle equivalents.
+
+The results shown are for one set of data with a single random seed. Repeating the tests with 4 other data sets produces similar results. {\meta Do some more and average over them.}
+
+\begin{figure}
+\centering
+\input{chain_init_PG_200.tikz}
+\caption{First 200 iterations using PG with 200 particles. Chain fails to converge at all, even after 5000 iterations.}
+\label{fig:chain_init_fail}
+\end{figure}
+
+\begin{figure}
+\centering
+\input{chain_init.tikz}
+\caption{First 200 iterations using PG-BS and PG-RBS. Faster convergence with PG-RBS.}
+\label{fig:chain_init}
+\end{figure}
+
+\begin{figure}
+\centering
+\input{acf_plot.tikz}
+\caption{Autocorrelation plot for PG-BS and PG-RBS.}
+\label{fig:acf}
+\end{figure}
+
+\begin{figure}
+\centering
+\subfloat[PG-BS (N=100)]{ \input{hist_PGBS_100.tikz} }
+\subfloat[PG-BS (N=200)]{ \input{hist_PGBS_200.tikz} } \\
+\subfloat[PG-RBS (N=100)]{ \input{hist_PGRBS_100.tikz} }
+\caption{Posterior sample histograms.}
+\label{fig:sample_hist}
+\end{figure}
+
+
+\section{Conclusions}
 
 
 
 
-\section{Extended Target Distribution}
+\appendix
+
+\section{Manipulations of the Particle Gibbs Extended Target Distribution}
+
+\subsection{Extended Target Distribution}
 
 The particle MCMC extended target distribution is,
 %
@@ -252,7 +506,7 @@ This is the form we need for particle marginal Metropolis-Hastings.
 
 
 
-\section{Particle Gibbs with Backward Simulation}
+\subsection{Particle Gibbs with Backward Simulation}
 
 In a basic particle Gibbs sampler, we alternately sample $\aifinal$ and $\lsset{1:\timax}\pss{\notai{1:\timax}}, \anset{2:\timax}\pss{\notai{1:\timax}}$. When doing ordinary backward simulation, we add an additional set of steps. Passing backwards through time from $\ti=\timax$ to $\ti=1$, we sample from,
 %
@@ -288,7 +542,7 @@ and obtain the conditional,
 
 
 
-\section{Particle Gibbs with Refreshed Backward Simulation}
+\subsection{Particle Gibbs with Refreshed Backward Simulation}
 
 The change we're going to make is to replace the collapsed Gibbs steps constituting backward simulation with a new set, sampling recursively from,
 %
@@ -323,102 +577,73 @@ and obtain the conditional,
  \qquad \qquad & = & \frac{ \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) }{ \sum_j \pw{\ti}\pss{j} \int \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{j}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) d\ls{\ti}\pss{\ai{\ti}} } \nonumber      .
 \end{IEEEeqnarray}
 
-Now the obvious problem is that we cannot sample from this directly. Instead we can use Metropolis-within-Gibbs, using the proposal distribution,
-%
+
+
+\section{Manipulations of the Conditional Importance Sampling Extended Target Distribution}
+
 \begin{IEEEeqnarray}{rCl}
- \frac{ \pw{\ti}\pss{\an{\ti}\pss{\ai{\ti}}} }{ \sum_j \pw{\ti}\pss{j} } \spd(\ls{\ti}\pss{\ai{\ti}} | \ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}, \ls{\ti+1}\pss{\ai{\ti+1}}, \ob{\ti}) \label{eq:rbs_proposal}      .
+ \cised(\anset{\ti}, \lsset{\ti}, \cisi) & = & \frac{1}{\nump} \ed(\ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi} | \lsset{\ti-1}) \times \prod_{i\ne\cisi} \frac{\ppw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \ppw{\ti}\pss{j}} \spd{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \nonumber \\
+ & = & \prod_{i} \frac{\pw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \pw{\ti}\pss{j}} \spd{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \times \frac{ \utf{\ti}(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }{ \spd{\ti}(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) } \nonumber \\
+ & & \qquad \times \frac{ 1 }{ \nump \sum_j \pw{\ti}\pss{j} \int \utf{\ti}(\ls{\ti}|\ls{\ti-1}\pss{j}) d\ls{\ti}  }
 \end{IEEEeqnarray}
-%
-The target:proposal ratio is then proportional to,
-%
-\begin{IEEEeqnarray}{rCl}
- \frac{ \td(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) }{ \spd(\ls{\ti}\pss{\ai{\ti}} | \ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}, \ls{\ti+1}\pss{\ai{\ti+1}}, \ob{\ti}) } \label{eq:rbs_tgtppslratio}     .
-\end{IEEEeqnarray}
-%
-The acceptance ratio comprises this quantity for the current and proposed values of $(\ls{\ti}\pss{\ai{\ti}}, \an{\ti}\pss{\ai{\ti}})$. The downside to this is that we need to decide how many MH steps to do. Furthermore, if there are only a few values of $\an{\ti}\pss{\ai{\ti}}$ which lead to plausible candidates then this is inefficient.
 
 
-
-\section{Conditional Importance Sampling}
-
-Intuitively, we should be able to sample the troublesome conditional distribution using importance sampling-resampling. Sample a set of $\nump$ particles from the proposal \eqref{eq:rbs_proposal}, weight them using \eqref{eq:rbs_tgtppslratio}, then resample one particle from the set according to these new weights. Standard importance sampling results imply that this provides a sample from the correct distribution when $\nump\to\infty$. However, if we instead use \emph{conditional importance sampling}, akin to the conditional particle filter, then we can ensure that the marginal distribution of the sampled particle is exactly equal to the target distribution for $\nump>1$.
-
-We are going to introduce a second set of particles at time instant $\ti$, so to avoid confusion, lets clarify our objective. We need to sample from a target distribution with the following form,
-%
-\begin{IEEEeqnarray}{rCl}
-\ed(\ls{\ti}, \an{\ti} | \lsset{\ti-1}) & = & \frac{ \pw{\ti}\pss{\an{\ti}} \utf(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) }{ \sum_j \pw{\ti}\pss{j} \int \utf(\ls{\ti}|\ls{\ti-1}\pss{j}) d\ls{\ti} }      .
-\end{IEEEeqnarray}
-%
-We begin the process with a sample from this distribution, and now we wish to draw a fresh one.
-
-Define an extended target distribution over a particle set,
-%
-\begin{IEEEeqnarray}{rCl}
- \cised(\lsset{\ti}, \anset{\ti}, \cisi) & = & \cised(\ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi}, \cisi) \: \cised(\lsset{\ti}\pss{\notcisi}, \anset{\ti}\pss{\notcisi} | \ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi}, \cisi) \nonumber \\
- & = & \frac{1}{\nump} \ed(\ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi} | \lsset{\ti-1}) \times \prod_{i\ne\cisi} \frac{\pw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \pw{\ti}\pss{j}} \spd(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \nonumber \\
- & = & \prod_{i} \frac{\pw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \pw{\ti}\pss{j}} \spd(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \times \frac{ \utf(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }{ \spd(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) } \nonumber \\
- & & \qquad \times \frac{ 1 }{ \nump \sum_j \pw{\ti}\pss{j} \int \utf(\ls{\ti}|\ls{\ti-1}\pss{j}) d\ls{\ti}  }
-\end{IEEEeqnarray}
-%
-which clearly admits the desired distribution as a marginal. The extended distribution is targeted using Gibbs sampling. An initial value of $\cisi$ is sampled from a uniform distribution over the particle indexes and the starting values assigned to this index. We then draw from $\cised(\lsset{\ti}\pss{\notcisi}, \anset{\ti}\pss{\notcisi} | \ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi}, \cisi)$, providing a set of candidate particles, then select one by drawing from,
-%
 \begin{IEEEeqnarray}{rCl}
  \cised(\cisi | \lsset{\ti}, \anset{\ti}) & = & \frac{ \spw{\ti}\pss{\cisi} }{ \sum_j \spw{\ti}\pss{j} } \nonumber \\
- \spw{\ti}\pss{\cisi} & = & \frac{ \utf(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }{ \spd(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }     .
+ \spw{\ti}\pss{\cisi} & = & \frac{ \utf{\ti}(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }{ \spd(\ls{\ti}\pss{\cisi}|\ls{\ti-1}\pss{\an{\ti}\pss{\cisi}}) }     .
 \end{IEEEeqnarray}
 
 
-\section{Simulations Testing}
-
-\subsection{The Model}
-Particle Gibbs (PG), Particle Gibbs with Backward Simulation (PG-BS) and Particle Gibbs with Refreshed Backward Simulation (PG-RBS) were tested on a tracking model. The transition model is 3D near constant velocity motion, and the observation model bearing, elevation and range measurements. The parameter to be learnt is the scale factor on the transition covariance matrix, which characterises the target manoeuvrability. The data set has 100 time steps.
-
-\subsection{Algorithm Settings}
-Each algorithm was run for 5000 iterations, with a burn in of 1000. PG and PG-BS were run twice, with 100 and 200 particles each. PG-RBS was run with 100 particles. PG-RBS with 100 particles takes roughly the same time as PG-BS with 200 particles.
-
-\subsection{Results}
-PG does not mix at all. Parameter estimates do not approach the true value. See figure~\ref{fig:chain_init_fail}.
-
-PG-BS and PG-RBS do converge. Figure~\ref{fig:sample_hist} shows the posterior histograms. Figure~\ref{fig:chain_init} shows the first 200 iterations, showing the faster convergence of the PG-RBS algorithm. Figure~\ref{fig:acf} shows the autocorrelation function plots. This indicates faster mixing from PG-RBS with both equal-time and equal-particle equivalents.
-
-The results shown are for one set of data with a single random seed. Repeating the tests with 4 other data sets produces similar results.
-
-\begin{figure}
-\centering
-\input{chain_init_PG_200.tikz}
-\caption{First 200 iterations using PG with 200 particles. Chain fails to converge at all, even after 5000 iterations.}
-\label{fig:chain_init_fail}
-\end{figure}
-
-\begin{figure}
-\centering
-\input{chain_init.tikz}
-\caption{First 200 iterations using PG-BS and PG-RBS. Faster convergence with PG-RBS.}
-\label{fig:chain_init}
-\end{figure}
-
-\begin{figure}
-\centering
-\input{acf_plot.tikz}
-\caption{Autocorrelation plot for PG-BS and PG-RBS.}
-\label{fig:acf}
-\end{figure}
-
-\begin{figure}
-\centering
-\subfloat[PG-BS (N=100)]{ \input{hist_PGBS_100.tikz} }
-\subfloat[PG-BS (N=200)]{ \input{hist_PGBS_200.tikz} } \\
-\subfloat[PG-RBS (N=100)]{ \input{hist_PGRBS_100.tikz} }
-\caption{Posterior sample histograms.}
-\label{fig:sample_hist}
-\end{figure}
 
 
-\section{Extensions}
-\begin{itemize}
- \item What happens if we sample new states over multiple time steps? How does this improve the mixing? What happens as the process noise becomes smaller and smaller. (We will need to sample more states to get the trajectories to ``match up'', but the particle filter will work better, so maybe backward simulation becomes unnecessary?)
- \item Do we need state sampling at every step?
-\end{itemize}
+
+% \subsection{Particle Filtering}
+% The particle filter is a sequential Monte Carlo algorithm which recursively approximates the sequence of filtering densities $\den(\ls{1:\ti}|\pr,\ob{1:\ti}) : \ti = 1,\dots,\timax$. This is achieved by propagating forwards a collection of $\nump$ particles $\{\ls{1:\ti}\pss{i}: i = 1,\dots,\nump\}$, each of which is a realisation of the state sequence, along with a set of associated weights $\{\pw{\ti}\pss{i}: i = 1,\dots,\nump\}$, such that for an arbitrary test function $\testfunc$,
+% %
+% \begin{IEEEeqnarray}{rClCl}
+%  \frac{\sum_{i=1}^{\nump} \pw{\ti}\pss{i} \testfunc(\ls{1:\ti}\pss{i})}{\sum_{i=1}^{\nump} \pw{\ti}\pss{i}} & \toas & \int \testfunc(\ls{1:\ti}) \den(\ls{1:\ti}|\pr,\ob{1:\ti}) d\ls{1:\ti} \nonumber & \quad \text{as} \quad & \nump \to \infty    .
+% \end{IEEEeqnarray}
+% %
+% At each time step, the following procedure is executed:
+% \begin{itemize}
+%  \item First sample a vector of ancestor indexes $\anset{\ti} = \{\an{\ti}\pss{i} : i = 1,\dots,\nump\}$ where $\an{\ti}\pss{i} \in \{1,\dots,\nump\}$.
+%  \item Next sample a new value of the state conditional on each ancestry from an importance density $\id{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})$. Note that $\id{\ti}$ may depend on the observation sequence $\ob{1:\timax}$, but this is suppressed for clarity of presentation.
+%  \item Finally, calculate particle weights to compensate for the discrepancy between the true distribution of the particles and the targeted posterior, \[\pw{\ti}\pss{i} = \frac{\td{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})\od{\ti}(\ob{\ti}|\ls{\ti}\pss{i})}{\id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})}   .\]
+% \end{itemize}
+% %
+% For simplicity, we constrain the first stage to use simple multinomial sampling, such that each ancestor index is sampled independently with $\prob(\an{\ti}\pss{i}=j)=\frac{\pw{\ti}\pss{j}}{\sum_k \pw{\ti}\pss{k}}$. Generalisations to use auxiliary sampling and variance reduction methods --- such as residual, stratified and systematic sampling --- can be applied by following \citep{Chopin2013,Lindsten2012}... {\meta check that they can}
+% 
+% State trajectories are constructed by tracing the lineage of the particles described by the ancestor indexes. Recursively we have,
+% %
+% \begin{IEEEeqnarray}{rCl}
+%  \ls{1:\ti}\pss{i} & = & \ls{1:\ti-1}\pss{\an{\ti}\pss{i}} \cup \ls{\ti}\pss{i} \nonumber     .
+% \end{IEEEeqnarray}
+% 
+% Once the particle filter has been run up to time $\timax$, a single trajectory sampled according to the final weights $\{\pw{\timax}\pss{i} : i = 1,\dots,\nump\}$ will be \emph{approximately} distributed according to $\den(\ls{1:\timax}|\pr,\ob{1:\timax})$.
+
+% The procedure is set out in algorithm~\ref{alg:particle-filter}.
+% 
+% \begin{algorithm}
+% \begin{algorithmic}[1]
+%  \STATE Sample $\ls{1}\pss{i} \sim \id{1}(\cdot)$.
+%  \STATE Weight $\pw{1}\pss{i} = \frac{\td{1}(\ls{1}\pss{i})\od{1}(\ob{1}|\ls{1}\pss{i})}{\id{1}(\ls{1}\pss{i})}$.
+%  \FOR{$\ti=1,\dots,\timax$}
+%   \STATE Sample $\an{\ti}\pss{i} \sim \frac{\pw{\ti}\pss{\an{\ti}}}{\sum_j \pw{\ti}\pss{j}}$.
+%   \STATE Sample $\ls{\ti}\pss{i} \sim \id{\ti}(\cdot|\ls{\ti-1})$.
+%   \STATE Weight $\pw{\ti}\pss{i} = \frac{\td{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})\od{\ti}(\ob{\ti}|\ls{\ti}\pss{i})}{\id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})}$.
+%  \ENDFOR
+% \end{algorithmic}
+% \caption{Particle Filter}
+% \label{alg:particle-filter}
+% \end{algorithm}
+% 
+% \subsection{Backwards Simulation}
+% The final step of the particle filter returns a collection of weighted particles approximating the posterior state density $\den(\ls{1:\timax}|\ob{1:\timax})$. However, this is liable to suffer from \emph{path space degeneracy}. Because only a subset of the possible ancestor indexes are selected at each step, the number of unique states appearing in the trajectories decreases as we look back in time. If $\timax$ is sufficiently large, then there will be a time step before which every particle has the same ancestry.
+% 
+% Backward simulation allows a new state trajectory to be sampled, which will be less correlated with the existing set of particles. 
+% 
+% In standard PG, a new reference trajectory is sampled straight from this collection with probability proportional to the final filter weights. Since the old reference trajectory also appears in the 
+
 
 
 
