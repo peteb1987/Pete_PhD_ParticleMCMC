@@ -13,7 +13,7 @@ test_names = {...
 
 %%
 close all
-rr = 1;
+rr = 2;
 for tt = 1:num_tests
     
     load(['test_results/' test_names{tt} num2str(rr)]);
@@ -62,7 +62,7 @@ for tt = 3:5
     p = 'sigx';
     
     % Get chain values and truth
-    p_arr = cat(2,mc{aa}.param.(p));
+    p_arr = cat(2,mc{1}.param.(p));
     p_true = model.(p);
     
     if any(strcmp(p, {'sigx', 'sigy'}))
@@ -80,6 +80,8 @@ for tt = 3:5
     figure, hold on, hist(p_arr(algo.burn_in+1:end),100); plot(p_true*ones(1,2), [0 200], ':k');
     
 end
+
+%%
 
 figure(1)
 plot([1 max_it], p_true*ones(1,2), ':k'); 
