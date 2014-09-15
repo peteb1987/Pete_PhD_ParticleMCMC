@@ -93,10 +93,8 @@
 \begin{abstract}
  The particle Gibbs algorithm can be used for Bayesian parameter estimation in Markovian state space models. Sometimes the resulting Markov chains mix slowly when the component particle filter suffers from degeneracy. This effect can be somewhat alleviated using backward simulation. In this paper we show how a simple modification to this scheme, which we refer to as refreshed backward simulation, can further improve the mixing. This works by sampling new state values simultaneously with the corresponding ancestor indexes. Although the necessary conditional distributions cannot be sampled directly, we provide suitable Markov kernels which target them. The efficacy of this new scheme is demonstrated with a simulation example.
 \end{abstract}
-
-
 \section{Introduction}
-Particle Markov chain Monte Carlo (PMCMC) algorithms \citep{Andrieu2010,Olsson2011,Chopin2013,Lindsten2014} provide an elegant and effective solution for Bayesian parameter learning with Markovian state space models. They are based on the formulation of an extended target distribution over the system of random variables comprising a particle filter, which has the desired posterior distribution as a marginal. A Markov chain for which this extended distribution is invariant may be constructed using component sequential Monte Carlo (SMC) procedures. The particle system is composed of a set of states for each time step and corresponding ancestor index variables, which define a set of state trajectories.
+Particle Markov chain Monte Carlo (PMCMC) algorithms \citep{Andrieu2010,Olsson2011,Chopin2013,Lindsten2014} provide an elegant and effective solution for Bayesian parameter learning with Markovian state space models. They are based on the formulation of an extended target distribution over the system of random variables comprising a particle filter, which has the desired posterior distribution as a marginal. A Markov chain for which this extended distribution is invariant may be constructed using sequential Monte Carlo (SMC) components. The particle system is composed of a set of states for each time step and corresponding ancestor index variables, which define a set of state trajectories.
 
 In this paper we consider in particular the \emph{particle Gibbs} (PG) algorithm, introduced by \citep{Andrieu2010}. This samples in turn new values for the unknown parameters, the particle system, and an index variable indicating one reference trajectory. Sampling the particle system is equivalent to running a modified particle filter. Like any Gibbs sampler, this has the advantage over Metropolis-Hastings of not requiring an accept/reject stage. However, the resulting chains are still liable to mix slowly if the particle filter suffers from path-space degeneracy.
 
@@ -164,7 +162,7 @@ The PMCMC extended target distribution is constructed over the space of an entir
  \anset{\ti} = \{\an{\ti}\pss{i} : i = 1,\dots,\nump\} & \quad & \ti = 2,\dots,\timax \nonumber      .
 \end{IEEEeqnarray}
 %
-The ancestor index $\an{\ti}\pss{i} \in \{1,\dots,\nump\}$ indicates the $(\ti-1)$ parent state from which $\ls{\ti}$ follows. Hence, each particle state trajectory is constructed by tracing the lineage described by these ancestor indexes. Recursively we have,
+The ancestor index $\an{\ti}\pss{i} \in \{1,\dots,\nump\}$ indicates the $(\ti-1)$ parent state from which $\ls{\ti}$ follows. Hence, each particle state trajectory is constructed recursively by tracing the lineage described by these ancestor indexes,
 %
 \begin{IEEEeqnarray}{rCl}
  \ls{1:\ti}\pss{i} & = & \ls{1:\ti-1}\pss{\an{\ti}\pss{i}} \cup \ls{\ti}\pss{i} \nonumber     .
@@ -309,7 +307,7 @@ However, the non-reference future values need not actually be generated.
 %
 % NOT TRUE, BECAUSE WE NO LONGER SAMPLE ANCESTOR DIRECTLY ANY MORE
 
-In standard backward simulation, the conditional for each ancestor index is a categorical distribution \eqref{eq:bs-distn}, which can be sampled directly by evaluating the weight associated with each possible value, or by rejection sampling \citep{Doucet2009,Taghavi2013}. It is also possible to use a Metropolis-Hastings kernel targeting this distribution \citep{Bunch2013,Bunch2014}.
+In standard backward simulation, the conditional for each ancestor index is a categorical distribution \eqref{eq:bs-distn}, which can be sampled directly by evaluating the weight associated with each possible value, or by rejection sampling \citep{Douc2009,Taghavi2013}. It is also possible to use a Metropolis-Hastings kernel targeting this distribution \citep{Bunch2013,Bunch2014}.
 
 In contrast, the joint conditional for state-ancestor pairs is a mixed continuous-discrete distribution \eqref{eq:rbs-distn}. Since it will not in general be possible to sample from this distribution directly, we consider two possible Markov kernels which can be used instead. To clarify the following explanations, we write the one-step target distribution in a simplified form, omitting superfluous indexes and conditioning,
 %
@@ -340,7 +338,7 @@ The marginal conditional distribution for the ancestor indexes is,
 \ed(\an{\ti} | \lsset{\ti-1}) = \int \ed(\ls{}, \an{\ti} | \lsset{\ti-1}) d\ls{} & = & \frac{ \pw{\ti-1}\pss{\an{\ti}} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{\an{\ti}})d\ls{} }{ \sum_j \pw{\ti-1}\pss{j} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{j}) d\ls{} } \nonumber      .
 \end{IEEEeqnarray}
 %
-If this distribution is dominated by a small number of possible values with high probability, then a Metropolis-Hastings kernel will be inefficient. It may take a large number of steps before one of these likely ancestors is proposed. In such circumstances it may be advantageous to the following method based \emph{conditional importance sampling} (CIS) instead.
+If this distribution is dominated by a small number of possible values with high probability, then a Metropolis-Hastings kernel will be inefficient. It may take a large number of steps before one of these likely ancestors is proposed. In such circumstances it may be advantageous to use the following method based on \emph{conditional importance sampling} (CIS) instead.
 
 CIS uses the same principle as the conditional particle filter, but applied to a single time step. Suppose we have the current values $\an{\ti}^*$ and $\ls{\ti}^*$, then a Markov kernel may be constructed with \eqref{eq:simplified-rbs-distn} as its invariant distribution by following algorithm~\ref{alg:cis}.
 
@@ -369,9 +367,7 @@ To justify that this is a correct Markov kernel, we construct another extended t
  \cised(\anset{\ti}, \lsset{\ti}, \cisi) & = & \frac{1}{\nump} \ed(\ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi} | \lsset{\ti-1}) \times \prod_{i\ne\cisi} \frac{\ppw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \ppw{\ti}\pss{j}} \spd{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) 
 \end{IEEEeqnarray}
 %
-The first part of algorithm~\ref{alg:cis} by construction corresponds to sampling from the conditional distribution, $\cised(\anset{\ti}\pss{\notcisi}, \lsset{\ti}\pss{\notcisi} | \an{\ti}\pss{\cisi}, \ls{\ti}\pss{\cisi}, \cisi)$, and the final part to sampling from $\cised(\cisi|\anset{\ti}, \lsset{\ti})$. See appendix~\ref{app:cis-ed-derivations} for a proof.
-
-Hence, if the starting values are distributed according to the desired posterior, then the final values must also be, and so the procedure is a Markov kernel with the desired invariant distribution.
+The first part of algorithm~\ref{alg:cis} by construction corresponds to sampling from the conditional distribution, $\cised(\anset{\ti}\pss{\notcisi}, \lsset{\ti}\pss{\notcisi} | \an{\ti}\pss{\cisi}, \ls{\ti}\pss{\cisi}, \cisi)$, and the final part to sampling from $\cised(\cisi|\anset{\ti}, \lsset{\ti})$. See appendix~\ref{app:cis-ed-derivations} for a proof. Hence, if the starting values are distributed according to the desired posterior, then the final values must also be, and so the procedure is a Markov kernel with the desired invariant distribution.
 
 \section{Extensions and Variations}
 
@@ -390,7 +386,7 @@ As before, this is a collapsed Gibbs move. The distribution which we are samplin
  \ed(\an{\ti}\pss{\ai{\ti}}, \ls{\ti:\ti+\wl-1}\pss{\ai{\ti:\ti+\wl-1}}, \anset{\ti:\timax}\pss{\notai{\ti:\timax}}, \lsset{\ti:\timax}\pss{\notai{\ti:\timax}} | \pr, \lsset{1:\ti-1}, \anset{2:\ti-1}, \ls{\ti+\wl:\timax}\pss{\ai{\ti+\wl:\timax}}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}} \aifinal) \nonumber      .
 \end{IEEEeqnarray}
 %
-However, the non-reference future values need not actually be generated. Implementing such a scheme will require careful design of proposal or importance densities for the joining bridge of state $\ls{\ti:\ti+\wl-1}\pss{\ai{\ti:\ti+\wl-1}}$.
+However, the non-reference future values need not actually be generated. Implementing such a scheme will require careful design of proposal or importance densities for the joining bridge of states $\ls{\ti:\ti+\wl-1}\pss{\ai{\ti:\ti+\wl-1}}$.
 
 
 \subsection{Ancestor Sampling}
@@ -471,7 +467,7 @@ The particle MCMC extended target distribution is,
 %
 \begin{IEEEeqnarray}{rCl}
  \ed(\pr, \anset{2:\timax}, \lsset{1:\timax}, \aifinal) & = & \frac{1}{\nump^\timax} \den(\pr, \ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax}) \nonumber \\
-  & & \qquad  \times \prod_{i\ne\ai{1}} \id{1}(\ls{1}\pss{i}) \prod_{\ti=2}^{\timax} \left[ \prod_{i\ne\ai{\ti}} \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \right] \label{app-eq:extended_dist_v1}     .
+  & &  \times \prod_{i\ne\ai{1}} \id{1}(\ls{1}\pss{i}) \prod_{\ti=2}^{\timax} \left[ \prod_{i\ne\ai{\ti}} \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \right] \label{app-eq:extended_dist_v1}     .
 \end{IEEEeqnarray}
 %
 By design, this has,
@@ -696,3 +692,4 @@ Hence, the conditional from which we need to sample a particle index is,
 \bibliography{/users/pete/Dropbox/PhD/OTbib}
 
 \end{document} 
+
