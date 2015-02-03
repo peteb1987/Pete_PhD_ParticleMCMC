@@ -100,7 +100,7 @@ In this paper we consider in particular the \emph{particle Gibbs} (PG) algorithm
 
 It is possible to reduce degeneracy, and thus improve the mixing of the PG Markov chain, by incorporating additional sampling steps, either during the filtering stage, known as particle Gibbs with ancestor sampling (PG-AS) \cite{Lindsten2014}, or in an additional backward sweep, known as particle Gibbs with backward simulation (PG-BS) \cite{Whiteley2010b,Lindsten2012}. The improvement arises from sampling new values for individual ancestor indexes, and thus allowing the reference trajectory to be updated gradually rather than changing it all at once.
 
-For near-degenerate models, mixing may be slow even when using PG-BS or PG-AS. Specifically, when the model transition distribution is highly informative, the probability of sampling any change in the particle ancestry is low. Intuitively, the problem is that the only state history consistent with a particular future is that from which the future was originally generated. We can mitigate this effect by using a modified procedure which we call \emph{refreshed backward simulation} \cite{Bunch2013,Bunch2014}. When sampling an ancestor index for the reference trajectory, we simultaneously sample a new value for the associated state. This allows us some leeway to steer the potential state histories towards the fixed future, consequently increasing the probability of changing the ancestry and thus improving the mixing of the Markov chain.
+For near-degenerate models, mixing may be slow even when using PG-BS or PG-AS. Specifically, when the model transition distribution is highly informative, the probability of sampling any change in the particle ancestry is low. Intuitively, the problem is that the only state history consistent with a particular future is that from which the future was originally generated. We can mitigate this effect by using a modified procedure which we call \emph{refreshed backward simulation} \cite{Bunch2012,Bunch2014}. When sampling an ancestor index for the reference trajectory, we simultaneously sample a new value for the associated state. This allows us some leeway to steer the potential state histories towards the fixed future, consequently increasing the probability of changing the ancestry and thus improving the mixing of the Markov chain.
 
 A recent paper \cite{Carter2014} presents ideas which have some overlap with our work. Specifically, they use Markov chain Monte Carlo during a backward sweep to sample new state values. However, they do not simultaneously sample the corresponding ancestor variable, as we do here, a step which is important in order to improve the mixing for near-degenerate models. Furthermore, they introduce a different extended target distribution in order to justify this addition, which necessitates changes to the conditional particle filter, whereas we only use the standard PMCMC distribution.
 
@@ -229,13 +229,13 @@ We can increase the chances of altering the ancestry, and thus further improve m
 %
 As before, this is a collapsed Gibbs move.
 
-In standard backward simulation, the conditional for each ancestor index is a categorical distribution \eqref{eq:bs-distn}, which can be sampled directly by evaluating the weight associated with each possible value, or by rejection sampling \cite{Douc2011,Taghavi2013}. It is also possible to use an MH kernel targeting this distribution \cite{Bunch2013,Bunch2014}.
+In standard backward simulation, the conditional for each ancestor index is a categorical distribution \eqref{eq:bs-distn}, which can be sampled directly by evaluating the weight associated with each possible value, or by rejection sampling \cite{Douc2011,Taghavi2013}. It is also possible to use an MH kernel targeting this distribution \cite{Bunch2012}.
 
 In contrast, the joint conditional for state-ancestor pairs is a mixed continuous-discrete distribution \eqref{eq:rbs-distn}. Since it will not in general be possible to sample from this distribution directly, we consider two possible Markov kernels which can be used instead. To clarify the following explanations, we write the one-step target distribution in a simplified form, omitting superfluous indexes and conditioning,
 %
 \begin{IEEEeqnarray}{rCl}
 \ed(\an{\ti},\ls{\ti} | \lsset{\ti-1}) & = & \frac{ \pw{\ti-1}\pss{\an{\ti}} \utf{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) }{ \sum_j \pw{\ti-1}\pss{j} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{j}) d\ls{} } \label{eq:simplified-rbs-distn} \\
- \utf{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) & = & \td{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od{\ti}(\ob{\ti}|\ls{\ti}) \td{\ti+1}(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}) \nonumber      .
+ \utf{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) & = & \td{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) \od{\ti}(\ob{\ti}|\ls{\ti}) \td{\ti+1}(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}) \nonumber      .
 \end{IEEEeqnarray}
 
 \subsubsection{Metropolis-Hastings}
@@ -245,14 +245,14 @@ We can target \eqref{eq:simplified-rbs-distn} using MH. From current values $\an
  \frac{ \ppw{\ti-1}\pss{\an{\ti}} }{ \sum_j \ppw{\ti-1}\pss{j} } \pd{\ti}(\ls{\ti} | \ls{\ti-1}\pss{\an{\ti}}, \ls{\ti}^*) \label{eq:rbs-mh-ppsl}       ,
 \end{IEEEeqnarray}
 %
-in which $\{\ppw{\ti}\pss{i} : i = 1,\dots,\nump\}$ are a set of proposal weights for the ancestor index and $\pd{\ti}$ is a new proposal density. The resulting acceptance probability is then,
+in which $\{\ppw{\ti-1}\pss{i} : i = 1,\dots,\nump\}$ are a set of proposal weights for the ancestor index and $\pd{\ti}$ is a new proposal density. The resulting acceptance probability is then,
 %
 \begin{IEEEeqnarray}{l}
  \mhap(\{\an{\ti}^*,\ls{\ti}^*\} \to \{\an{\ti}',\ls{\ti}'\}) \nonumber \\
  \quad = \min\left\{ 1, \frac{ \pw{\ti-1}\pss{\an{\ti}'} \utf{\ti}(\ls{\ti}'|\ls{\ti-1}\pss{\an{\ti}'}) }{ \ppw{\ti-1}\pss{\an{\ti}'} \pd{\ti}(\ls{\ti}' | \ls{\ti-1}\pss{\an{\ti}'}, \ls{\ti}^*) } \frac{ \ppw{\ti-1}\pss{\an{\ti}^*} \pd{\ti}(\ls{\ti}^* | \ls{\ti-1}\pss{\an{\ti}^*}, \ls{\ti}') }{ \pw{\ti-1}\pss{\an{\ti}^*} \utf{\ti}(\ls{\ti}^*|\ls{\ti-1}\pss{\an{\ti}^*}) } \right\}
 \end{IEEEeqnarray}
 %
-This is the scheme suggested in \cite{Bunch2013,Bunch2014} for state smoothing.
+This is the scheme suggested in \cite{Bunch2012} for state smoothing.
 
 
 \subsubsection{Conditional Importance Sampling}
@@ -262,9 +262,9 @@ The marginal conditional distribution for the ancestor indexes is,
 \ed(\an{\ti} | \lsset{\ti-1}) = \int \ed(\ls{}, \an{\ti} | \lsset{\ti-1}) d\ls{} & = & \frac{ \pw{\ti-1}\pss{\an{\ti}} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{\an{\ti}})d\ls{} }{ \sum_j \pw{\ti-1}\pss{j} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{j}) d\ls{} } \nonumber      .
 \end{IEEEeqnarray}
 %
-If this distribution is dominated by a small number of ancestors with high probability, then an MH kernel will be inefficient. It may take a large number of steps before one of these is proposed. In such circumstances it may be advantageous to use the following method based on \emph{conditional importance sampling} (CIS) instead, which we can view simply as an instance of the conditional particle filter from \cite{Andrieu2010} applied to a single time step.
+If this distribution is dominated by a small number of ancestors with high probability, then an MH kernel will be inefficient. It may take a large number of steps before one of these is proposed. In such circumstances it may be advantageous to use the following method based on \emph{conditional importance sampling} (CIS) instead.
 
-CIS uses the same principle as the conditional particle filter, but applied to a single time step. Suppose we have the current values $\an{\ti}^*$ and $\ls{\ti}^*$, then a Markov kernel may be constructed with \eqref{eq:simplified-rbs-distn} as its invariant distribution by following algorithm~\ref{alg:cis}, in which $\spd{\ti}(\ls{\ti}|\ls{\ti-1})$ is an appropriate importance density.
+CIS uses the same principle as the conditional particle filter \cite{Andrieu2010}, but applied to a single time step. Suppose we have the current values $\an{\ti}^*$ and $\ls{\ti}^*$, then a Markov kernel may be constructed with \eqref{eq:simplified-rbs-distn} as its invariant distribution by following algorithm~\ref{alg:cis}, in which $\spd{\ti}(\ls{\ti}|\ls{\ti-1})$ is an appropriate importance density.
 
 \begin{algorithm}[!h]
 \begin{spacing}{1.5}
