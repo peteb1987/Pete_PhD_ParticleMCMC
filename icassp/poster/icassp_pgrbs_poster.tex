@@ -1,0 +1,306 @@
+\documentclass[landscape,a0,plainboxedsections]{sciposter}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{IEEEtrantools}
+\usepackage{multicol}
+\usepackage{algorithmic}
+\usepackage{setspace}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+ \usetikzlibrary{plotmarks}
+ \pgfplotsset{compat=newest}
+ \pgfplotsset{plot coordinates/math parser=false}
+% \usepgfplotslibrary{external}
+% \tikzexternalize[prefix=tikz/]
+
+ 
+\title{Particle Gibbs with Refreshed Backward Simulation}
+\author{Pete Bunch \qquad Fredrik Lindsten \qquad Sumeetpal Singh}
+\institute{Department of Engineering, University of Cambridge, Trumpington Street, Cambridge, CB2 1PZ, UK}
+\email{\{pb404,fsml2,sss40\}@eng.cam.ac.uk}
+\leftlogo[1.5]{CUnibig.pdf}
+
+
+\newcommand{\meta}[1]{{\color{red}\em #1}}
+
+\setmargins[3.5cm]
+\setlength{\intextsep}{20\baselineskip plus 0.2\baselineskip minus 0.2\baselineskip}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% MACROS %%%
+\newcommand{\ti}{t}
+\newcommand{\timax}{T}
+
+\newcommand{\pr}{\theta}
+\newcommand{\prspace}{\Theta}
+
+\newcommand{\ls}[1]{x_{#1}}
+\newcommand{\lsspace}{\mathcal{X}}
+
+\newcommand{\ob}[1]{y_{#1}}
+\newcommand{\obspace}{\mathcal{Y}}
+
+\newcommand{\nc}{Z}
+
+\newcommand{\toas}{\stackrel{\text{a.s.}}{\to}}
+\newcommand{\testfunc}{\zeta}
+\newcommand{\prob}{P}
+
+\newcommand{\id}[1]{q_{#1}}
+
+\newcommand{\an}[1]{a_{#1}}
+\newcommand{\ai}[1]{b_{#1}}
+\newcommand{\notai}[1]{-b_{#1}}
+\newcommand{\aifinal}{K}
+\newcommand{\lsset}[1]{\mathbf{x}_{#1}}
+\newcommand{\anset}[1]{\mathbf{a}_{#1}}
+
+\newcommand{\den}{p}
+\newcommand{\ed}{\pi}
+\newcommand{\td}[1]{f_{\theta,#1}}
+\newcommand{\od}[1]{g_{\theta,#1}}
+\newcommand{\pd}[1]{\phi_{#1}}
+\newcommand{\spd}[1]{\psi_{#1}}
+
+\newcommand{\pw}[1]{w_{#1}}
+\newcommand{\ppw}[1]{v_{#1}}
+\newcommand{\spw}[1]{u_{#1}}
+
+\newcommand{\mhap}{\alpha}
+\newcommand{\pss}[1]{^{(#1)}}
+\newcommand{\nump}{N}
+\newcommand{\utf}[1]{\rho_{#1}}
+\newcommand{\cised}{\eta}
+\newcommand{\cisi}{c}
+\newcommand{\notcisi}{-c}
+
+\newcommand{\wl}{L}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{document}
+\maketitle
+\begin{multicols}{4}
+
+\section{Summary}
+Particle Gibbs is a Markov Chain Monte Carlo algorithm which can be used for Bayesian parameter learning with Markovian state space models. It uses a particle filter at each iteration to sample a new state trajectory. The basic formulation requires large numbers of particles in order to mix well, because of particle filter degeneracy. This problem can be mitigated by including a backward simulation sweep to increase the probability of changing the particle ancestry. Here we show how a modification to the backward simulation phase, in which new states are sampled simultaneously with the ancestor indexes, can further improve mixing.
+%
+%
+%
+\section{Preliminaries}
+\paragraph*{Markovian state space model}
+\begin{itemize}
+ \item Sequence of latent states $\ls{\ti} \in \lsspace : \ti = 1,\dots,\timax$
+ \item Sequence of observations $\ob{\ti} \in \obspace : \ti = 1,\dots,\timax$
+ \item Model parameters $\pr \in \prspace$ with prior density $\den(\pr)$
+ \item Model densities exist and depend on the parameters:
+\end{itemize}
+\begin{IEEEeqnarray}{rClcrCl}
+ \ls{\ti}|\ls{\ti-1} & \sim & \td{\ti}(\ls{\ti}|\ls{\ti-1}) & \qquad & \ob{\ti}|\ls{\ti}   & \sim & \od{\ti}(\ob{\ti}|\ls{\ti})   \nonumber
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item The objective is to approximate the joint posterior density over all the unknown variables (with normalising constant $\nc$):
+\end{itemize}
+\begin{IEEEeqnarray}{rCl}
+ \den(\pr, \ls{1:\timax} | \ob{1:\timax}) & = & \frac{1}{\nc} \cdot \den(\pr) \prod_{\ti=1}^{\timax} \od{\ti}(\ob{\ti}|\ls{\ti}) \td{\ti}(\ls{\ti}|\ls{\ti-1}) \label{eq:full-posterior}
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item An ideal Gibbs Sampler would target this by alternately sampling the conditionals $\den(\ls{1:\timax}|\pr,\ob{1:\timax})$ and $\den(\pr|\ls{1:\timax},\ob{1:\timax})$.
+ \item Parameter conditional can be sampled directly or targeted with Metropolis-Hastings. State conditional is generally intractable.
+\end{itemize}
+%
+%
+%
+\paragraph*{Particle Filter}
+\begin{itemize}
+ \item Recursively approximates the sequence of joint filtering densities $\den(\ls{1:\ti}|\pr,\ob{1:\ti})$ using $\nump$ particles, each one a weighted realisation of the state sequence:
+\end{itemize}
+\begin{IEEEeqnarray}{rCl}
+ \{\ls{1:\ti}\pss{i}, \:\: \pw{\ti}\pss{i} \:\: : \:\: i = 1,\dots,\nump\} \nonumber
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item For each $\ti,i$, sample ancestor $\an{\ti}\pss{i} \in \{1,\dots,\nump\}$ and state $\ls{\ti}\pss{i}$ from:
+\end{itemize}
+\begin{IEEEeqnarray}{rCl}
+ \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \: \id{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) \nonumber
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item Update trajectory and weight:
+\end{itemize}
+\begin{IEEEeqnarray}{rClCrCl}
+ \ls{1:\ti}\pss{i} & = & \ls{1:\ti-1}\pss{\an{\ti}\pss{i}} \: \cup \: \ls{\ti}\pss{i} & \qquad\qquad & \pw{\ti}\pss{i}   & = & \frac{ \td{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})\od{\ti}(\ob{\ti}|\ls{\ti}\pss{i}) }{ \id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) } \nonumber
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item Exhibits path-space degeneracy, a significant deficiency. Not all particles are propagated to the next time instant. The number of unique states appearing in the trajectories decreases as we look back in time.
+\end{itemize}
+%
+%
+%
+\vfill
+\columnbreak
+\section{Particle Gibbs}
+\begin{itemize}
+ \item Consider all the random variable comprising a particle filter:
+\end{itemize}
+\begin{IEEEeqnarray}{rClCrClCl}
+ \lsset{\ti} = \{\ls{\ti}\pss{i}\}_{i=1}^{\nump} & \quad,\quad & \anset{\ti} = \{\an{\ti}\pss{i}\}_{i=1}^{\nump} & \quad,\quad & \ti = 2,\dots,\timax \nonumber
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item Let $\aifinal\in\{1,\dots,\nump\}$ be the index of one particular reference trajectory, with ancestry:
+\end{itemize}
+\begin{IEEEeqnarray}{rCl}
+ \ai{\ti} &=& \begin{cases}
+               \aifinal & \ti = \timax \\
+               \an{\ti+1}\pss{\ai{\ti+1}} & \ti = \timax-1,\dots,1
+              \end{cases} \nonumber
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item Construct extended target distribution over all all these variables:
+\end{itemize}
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \ed(\pr, \anset{2:\timax}, \lsset{1:\timax}, \aifinal) = \frac{1}{\nump^\timax} \cdot \den(\pr, \ls{1:\timax}\pss{\ai{1:\timax}}|\ob{1:\timax}) }\nonumber \\
+  \qquad \times \prod_{i\ne\ai{1}} \id{1}(\ls{1}\pss{i}) \prod_{\ti=2}^{\timax} \left[ \prod_{i\ne\ai{\ti}} \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \id{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \right] \label{eq:extended_dist_v1}
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item This may be targeted without approximation, and admits the desired posterior as a marginal. \cite{Andrieu2010}
+\end{itemize}
+\begin{itemize}
+ \item Sample alternately from conditional distributions for:
+ \begin{itemize}
+  \item $\pr$ (as before)
+  \item $\{\anset{2:\timax}\pss{\notai{2:\timax}}, \lsset{1:\timax}\pss{\notai{1:\timax}}\}$ (conditional particle filter)
+  \item $\aifinal$ (Sample from final set of weights)
+ \end{itemize}
+\end{itemize}
+%
+%
+%
+\section{Particle Gibbs with Backward Simulation}
+\begin{itemize}
+ \item Particle Gibbs mixing can be very slow, due to path-space degeneracy of conditional particle filter. Successive reference trajectories are likely to have a near-identical ancestry.
+ \item Mitigated by backward simulation, an extra sampling stage to modify ancestors one at a time, instead of all at once. \cite{Godsill2004,Whiteley2010b}
+ \item Sample new reference ancestor index for each $\ti$ (backwards in time) from:
+\end{itemize}
+\begin{IEEEeqnarray}{rCl}
+ \ed(\an{\ti}\pss{\ai{\ti}} | \pr, \anset{2:\ti-1}, \lsset{1:\ti-1}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \ls{\ti:\timax}\pss{\ai{\ti:\timax}}, \aifinal) & = & \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}} \td{\ti}(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) }{ \sum_j \pw{\ti-1}\pss{j} \td{\ti}(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{j}) } \nonumber \\ \label{eq:bs-distn}
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item This is a collapsed Gibbs move. \cite{Dyk2008} Future variables of reference trajectory are marginalised.
+\end{itemize}
+%
+%
+%
+\section{Refreshed Backward Simulation}
+\begin{itemize}
+ \item Backward simulation is ineffective if the transition density is informative (low variance). See Figure~\ref{fig:bs-fail}.
+ \item Improve mixing by simultaneously sampling new state(s) along with each ancestor index:
+\end{itemize}
+\begin{IEEEeqnarray}{l}
+ \ed(\an{\ti}\pss{\ai{\ti}}, \ls{\ti}\pss{\ai{\ti}} | \pr, \anset{2:\ti-1}, \lsset{1:\ti-1}, \an{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \ls{\ti+1:\timax}\pss{\ai{\ti+1:\timax}}, \aifinal) \nonumber \\
+ \qquad\qquad = \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}} \td{\ti}(\ls{\ti}\pss{\ai{\ti}}|\ls{\ti-1}\pss{\an{\ti}\pss{\ai{\ti}}}) \od{\ti}(\ob{\ti}|\ls{\ti}\pss{\ai{\ti}}) \td{\ti+1}(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{\ti}\pss{\ai{\ti}}) }{ \sum_j \pw{\ti-1}\pss{j} \int \td{\ti}(\ls{}|\ls{\ti-1}\pss{j}) \od{\ti}(\ob{\ti}|\ls{}) \td{\ti+1}(\ls{\ti+1}\pss{\ai{\ti+1}}|\ls{}) d\ls{} } \label{eq:rbs-distn}
+\end{IEEEeqnarray}
+\begin{figure}
+ \centering
+ \input{bs_fail_example.tikz}
+ \caption{A backward simulation sweep does not result in any changes to the reference particle ancestry (blue).}
+ \label{fig:bs-fail}
+\end{figure}
+\begin{itemize}
+ \item No change to extended target distribution.
+ \item Intuitively, sample state so as to bridge the gap between discontinuous past and future.
+ \item Easily extended to multiple time instants (i.e. sample $\ls{\ti:\ti+L-1}\pss{i}$).
+\end{itemize}
+%
+%
+%
+\section{Markov Kernels for Refreshed Sampling}
+\begin{itemize}
+ \item Cannot sample \eqref{eq:rbs-distn} directly (continuous-discrete). Instead target with a Markov kernel.
+ \item Write \eqref{eq:rbs-distn} in simplified form:
+\end{itemize}
+\begin{IEEEeqnarray}{rCl}
+\ed(\an{\ti},\ls{\ti} | \lsset{\ti-1}) & = & \frac{ \pw{\ti-1}\pss{\an{\ti}} \utf{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) }{ \sum_j \pw{\ti-1}\pss{j} \int \utf{\ti}(\ls{}|\ls{\ti-1}\pss{j}) d\ls{} } \label{eq:simplified-rbs-distn}
+\end{IEEEeqnarray}
+\begin{itemize}
+ \item Can be targeted with Metropolis-Hastings (as in \cite{Bunch2012} for state smoothing).
+ \item Alternatively, use conditional importance sampling. Particle Gibbs principle applied to a single time instant using extended target:
+\end{itemize}
+\begin{IEEEeqnarray}{rCl}
+ \cised(\anset{\ti}, \lsset{\ti}, \cisi) & = & \frac{1}{\nump} \ed(\ls{\ti}\pss{\cisi}, \an{\ti}\pss{\cisi} | \lsset{\ti-1}) \prod_{i\ne\cisi} \frac{\ppw{\ti}\pss{\an{\ti}\pss{i}}}{\sum_j \ppw{\ti}\pss{j}} \spd{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \nonumber     . 
+\end{IEEEeqnarray}
+\parbox{0.9\columnwidth}{
+\begin{algorithm}
+\begin{algorithmic}[1]
+\linespread{1.5} \selectfont
+ \REQUIRE Preceding particle states $\lsset{\ti-1}$, current values $\{\an{\ti}^*,\ls{\ti}^*\}$.
+ \STATE Sample an index uniformly $\cisi^*\in\{1,\dots,\nump\}$.
+ \STATE Set $\an{\ti}\pss{\cisi^*} = \an{\ti}^*$. Set $\ls{\ti}\pss{\cisi^*} = \ls{\ti}^*$.
+ \FORALL{$i \in \{1,\dots,\nump\}\setminus\cisi^*$}
+  \STATE Sample $\an{\ti}\pss{i} \sim \frac{\ppw{\ti-1}\pss{\an{\ti}}}{\sum_j \ppw{\ti-1}\pss{j}}$. Sample $\ls{\ti}\pss{i} \sim \spd{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}\pss{i}})$.
+ \ENDFOR
+ \STATE Sample $\cisi' \sim \frac{\spw{\ti}\pss{\cisi}}{\sum_j \spw{\ti}\pss{j}}$, where $\spw{\ti} = \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} \utf{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) }{ \ppw{\ti-1}\pss{\an{\ti}\pss{i}} \spd{\ti}(\ls{\ti}\pss{i}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) }$.
+ \STATE Set $\an{\ti}' = \an{\ti}\pss{\cisi'}$. Set $\ls{\ti}' = \ls{\ti}\pss{\cisi'}$.
+ \RETURN New values $\{\an{\ti}',\ls{\ti}'\}$.
+\end{algorithmic}
+\caption[0.9]{Conditional importance sampling for the joint ancestor-state conditional distributions.}
+\label{alg:cis}
+\end{algorithm} }
+%
+%
+%
+\section{Simulations}
+\begin{itemize}
+ \item Tested on a tracking problem. Near constant velocity transition model (3D) with observations of bearing, elevation and range. Unknown parameter is scale factor on the transition covariance matrix with uninformative conjugate prior.
+ \item $5$ simulated data sets each of $100$ time steps. $25000$ MCMC interations ($5000$ burn in).
+ \item Compared particle Gibbs (PG), with ordinary (PG-BS) and refreshed (PG-RBS) backward simulation, varying number of particles.
+ \item PG-RBS with $100$ particles takes same time as PG-BS with $200$.
+ \item PG does not work (no convergence).
+% \item EKF approximations to optimal importance densities wherever appropriate.
+% \item PG-RBS used conditional importance sampling kernel with $\ppw{\ti}\pss{i}=\pw{\ti}\pss{i}$.
+\end{itemize}
+
+\begin{figure}
+\centering
+\subfigure[{\small PG-BS ($N=100$)}]{ \input{PGtests_2_100_hist.tikz} }
+\subfigure[{\small PG-BS ($N=200$)}]{ \input{PGtests_2_200_hist.tikz} }
+\subfigure[{\small PG-RBS ($N=100$)}]{ \input{PGtests_3_100_hist.tikz} }
+\caption{Posterior histograms}
+\label{fig:sample_hist}
+\end{figure}
+%
+\begin{figure}
+\centering
+\input{mean_acf_plot.tikz}
+\caption{Mean autocorrelation function for PG-BS and PG-RBS.}
+\label{fig:acf}
+\end{figure}
+\vspace{-2cm}
+%
+%
+%
+\section{Conclusions}
+\begin{itemize}
+ \item Simple but effective modification to standard PG-BS algorithm.
+ \item States sampled simultaneously with ancestor indexes in backwards sweep.
+ \item Direct sampling of conditional posterior not possible, but efficient Markov kernels exist.
+ \item Improves mixing of Markov chain by increasing the probability of changing the ancestry.
+ \item Can also be used with ancestor sampling \cite{Lindsten2014} instead of backward simulation.
+\end{itemize}
+
+
+
+
+{ \small
+\bibliographystyle{IEEEbib}
+%\bibliography{/users/pete/Dropbox/PhD/Cleanbib}
+\bibliography{/home/pete/Dropbox/PhD/Cleanbib}
+}
+\vfill
+
+\end{multicols}
+\end{document}

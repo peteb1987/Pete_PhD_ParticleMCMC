@@ -1,0 +1,78 @@
+% This file was created by matlab2tikz v0.4.4 running on MATLAB 8.3.
+% Copyright (c) 2008--2013, Nico Schlömer <nico.schloemer@gmail.com>
+% All rights reserved.
+% 
+% The latest updates can be retrieved from
+%   http://www.mathworks.com/matlabcentral/fileexchange/22022-matlab2tikz
+% where you can also make suggestions and rate matlab2tikz.
+% 
+%
+% defining custom colors
+\definecolor{mycolor1}{rgb}{0,0,0.5625}%
+%
+\begin{tikzpicture}
+
+\begin{axis}[%
+width=4.5cm,
+height=4.5cm,
+area legend,
+scale only axis,
+xmin=0.5,
+xmax=2,
+xlabel={$\sigma^2$},
+ymin=0,
+ymax=500,
+axis x line*=bottom,
+axis y line*=left
+]
+\addplot[ybar,bar width=0.178998656193082cm,draw=black,fill=mycolor1] plot coordinates{(0.694917780309864,21)
+(0.748617377167789,37)
+(0.802316974025714,94)
+(0.856016570883639,222)
+(0.909716167741564,320)
+(0.96341576459949,423)
+(1.01711536145741,350)
+(1.07081495831534,373)
+(1.12451455517326,380)
+(1.17821415203119,311)
+(1.23191374888912,318)
+(1.28561334574704,288)
+(1.33931294260497,235)
+(1.39301253946289,186)
+(1.44671213632082,129)
+(1.50041173317874,88)
+(1.55411133003667,65)
+(1.60781092689459,33)
+(1.66151052375252,23)
+(1.71521012061044,19)
+(1.76890971746837,13)
+(1.82260931432629,16)
+(1.87630891118422,12)
+(1.93000850804214,17)
+(1.98370810490007,14)
+(2.03740770175799,5)
+(2.09110729861592,4)
+(2.14480689547384,3)
+(2.19850649233177,0)
+(2.25220608918969,1)};
+
+\addplot [
+color=black,
+solid,
+forget plot
+]
+table[row sep=crcr]{
+0.5 0\\
+2 0\\
+};
+\addplot [
+color=black,
+dotted,
+forget plot
+]
+table[row sep=crcr]{
+1 0\\
+1 500\\
+};
+\end{axis}
+\end{tikzpicture}%
