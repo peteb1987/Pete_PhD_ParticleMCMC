@@ -88,7 +88,7 @@
 \begin{multicols}{4}
 
 \section{Summary}
-Particle Gibbs is a Markov Chain Monte Carlo algorithm which can be used for Bayesian parameter learning with Markovian state space models. It uses a particle filter at each iteration to sample a new state trajectory. The basic formulation requires large numbers of particles in order to mix well, because of particle filter degeneracy. This problem can be mitigated by including a backward simulation sweep to increase the probability of changing the particle ancestry. Here we show how a modification to the backward simulation phase, in which new states are sampled simultaneously with the ancestor indexes, can further improve mixing.
+Particle Gibbs is a Markov Chain Monte Carlo algorithm which can be used for Bayesian parameter learning with Markovian state space models. It uses a particle filter at each iteration to sample a new state trajectory. The basic formulation often requires large numbers of particles in order to mix well, because of particle filter degeneracy. This problem can be mitigated by including a backward simulation sweep to increase the probability of changing the particle ancestry. Here we show how a modification to the backward simulation phase, in which new states are sampled simultaneously with the ancestor indexes, can further improve mixing.
 %
 %
 %
@@ -127,7 +127,7 @@ Particle Gibbs is a Markov Chain Monte Carlo algorithm which can be used for Bay
  \item For each $\ti,i$, sample ancestor $\an{\ti}\pss{i} \in \{1,\dots,\nump\}$ and state $\ls{\ti}\pss{i}$ from:
 \end{itemize}
 \begin{IEEEeqnarray}{rCl}
- \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \: \id{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}}) \nonumber
+ \frac{ \pw{\ti-1}\pss{\an{\ti}\pss{i}} }{ \sum_j \pw{\ti-1}\pss{j} } \: \id{\ti}(\ls{\ti}|\ls{\ti-1}\pss{\an{\ti}\pss{i}}) \nonumber
 \end{IEEEeqnarray}
 \begin{itemize}
  \item Update trajectory and weight:
@@ -255,8 +255,8 @@ Particle Gibbs is a Markov Chain Monte Carlo algorithm which can be used for Bay
 %
 \section{Simulations}
 \begin{itemize}
- \item Tested on a tracking problem. Near constant velocity transition model (3D) with observations of bearing, elevation and range. Unknown parameter is scale factor on the transition covariance matrix with uninformative conjugate prior.
- \item $5$ simulated data sets each of $100$ time steps. $25000$ MCMC interations ($5000$ burn in).
+ \item Tested on a tracking problem. Near constant velocity transition model (3D) with observations of bearing, elevation and range. Unknown scale factor on the transition covariance matrix.
+ \item $5$ simulated data sets each of $100$ time steps. $5000$ MCMC iterations ($1000$ burn in).
  \item Compared particle Gibbs (PG), with ordinary (PG-BS) and refreshed (PG-RBS) backward simulation, varying number of particles.
  \item PG-RBS with $100$ particles takes same time as PG-BS with $200$.
  \item PG does not work (no convergence).
@@ -297,8 +297,8 @@ Particle Gibbs is a Markov Chain Monte Carlo algorithm which can be used for Bay
 
 { \small
 \bibliographystyle{IEEEbib}
-%\bibliography{/users/pete/Dropbox/PhD/Cleanbib}
-\bibliography{/home/pete/Dropbox/PhD/Cleanbib}
+\bibliography{/users/pete/Dropbox/PhD/Cleanbib}
+% \bibliography{/home/pete/Dropbox/PhD/Cleanbib}
 }
 \vfill
 
